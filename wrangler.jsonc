@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "track-resume",
+  "name": "track-tesume",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-30",
   "d1_databases": [
