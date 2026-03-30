@@ -27,7 +27,7 @@ TrackResume addresses that problem by providing:
 - Link expiration and manual revocation
 - Privacy-oriented defaults such as `noindex`, `noarchive`, and hashed IP logging
 - GitHub-to-Cloudflare deployment workflow
-- Automatic D1 migration on main-branch deployment
+- Automatic D1 migration during deployment
 
 ## Demo Flow
 
@@ -74,16 +74,14 @@ GitHub -> Cloudflare Workers Builds
 
 1. Push this repository to GitHub.
 2. Import the repository in Cloudflare Workers.
-3. Set the branch to `main`.
-4. Set the deploy command to `npm run deploy`.
-5. Configure the required secrets in Cloudflare Dashboard.
-6. Ensure D1 and R2 bindings are correctly attached.
-
-TrackResume is configured to deploy from `main` only.
+3. Set the deploy command to `npm run deploy`.
+4. Configure the required secrets in Cloudflare Dashboard.
+5. Ensure D1 and R2 bindings are correctly attached.
+TrackResume is configured for a single deployment flow.
 
 ## Automatic Database Migration
 
-Deployment from `main` runs D1 migrations automatically before deploying the Worker:
+Deployment runs D1 migrations automatically before deploying the Worker:
 
 ```bash
 npm run deploy

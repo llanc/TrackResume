@@ -27,7 +27,7 @@ TrackResume 提供了下面这些能力：
 - 支持链接过期和手动停用
 - 默认偏隐私保护：`noindex`、`noarchive`、IP 哈希化存储
 - 支持 GitHub 连接 Cloudflare 的自动部署
-- 支持 `main` 分支部署时自动执行 D1 migration
+- 支持部署时自动执行 D1 migration
 
 ## 使用流程
 
@@ -74,16 +74,15 @@ GitHub -> Cloudflare Workers Builds
 
 1. 将本仓库推送到 GitHub。
 2. 在 Cloudflare Workers 中导入该仓库。
-3. 部署分支设置为 `main`。
-4. 部署命令设置为 `npm run deploy`。
-5. 在 Cloudflare Dashboard 中配置必需的 Secret。
-6. 确认 D1 和 R2 绑定已正确添加。
+3. 部署命令设置为 `npm run deploy`。
+4. 在 Cloudflare Dashboard 中配置必需的 Secret。
+5. 确认 D1 和 R2 绑定已正确添加。
 
-TrackResume 当前只从 `main` 分支部署。
+TrackResume 当前按单一部署流程配置。
 
 ## 自动数据库迁移
 
-从 `main` 分支部署时，会先自动执行 D1 migration，再部署 Worker：
+部署时，会先自动执行 D1 migration，再部署 Worker：
 
 ```bash
 npm run deploy
