@@ -1,216 +1,267 @@
-# Private Resume Worker
+# TrackResume
 
-一个部署在 Cloudflare Workers 上的私密简历站点，支持直接从 GitHub 导入到 Cloudflare 自动部署。
+TrackResume is a privacy-aware resume sharing and tracking portal built on Cloudflare Workers.
+It helps candidates send a recruiter-specific resume link that opens a PDF immediately, while keeping access scoped, observable, and easy to revoke.
 
-## 不想用 Wrangler，能不能部署
+TrackResume 是一个基于 Cloudflare Workers 的简历分发与访问追踪项目。
+它的目标是让求职者向招聘方发送“专属简历链接”，对方打开后即可直接查看 PDF，同时尽量控制访问范围、记录查看行为，并支持随时停用链接。
 
-可以。
+## Overview | 项目概览
 
-截至 2026-03-30，Cloudflare 官方支持把 GitHub 仓库直接连接到 Workers 做自动构建和部署。你不需要在本地安装、登录或运行 Wrangler CLI。你只需要：
+TrackResume is designed for a common hiring workflow problem:
+many recruiting platforms require the recruiter to reply first, or only expose limited in-app profile fields, which means your actual PDF resume is often ignored.
 
-- 把代码推到 GitHub
-- 在 Cloudflare Dashboard 导入仓库
-- 在 Dashboard 里配置 Secret、D1、R2
-- 让 Cloudflare 在生产部署时自动执行 D1 migration
+TrackResume solves this by providing:
 
-这个仓库里仍然保留了 [wrangler.jsonc](/C:/Users/liulancong/Desktop/Resume/wrangler.jsonc)，但它只是给 Cloudflare 构建系统读的项目配置文件，不要求你手动运行 Wrangler。
+- A dedicated resume link for each recruiter or company
+- Direct in-browser PDF viewing
+- Private access through unlisted, hard-to-guess links
+- Visit tracking for page open, PDF load, and download events
+- A lightweight admin panel for upload, link creation, and link revocation
 
-## 当前项目状态
+TrackResume 解决的是一个非常现实的问题：
+很多招聘平台要求对方先回复，或者只展示平台内的简历表单，导致精心准备的 PDF 简历反而不容易被看到。
 
-这个仓库已经可以直接用于 GitHub -> Cloudflare Workers 部署：
+TrackResume 提供了下面这些能力：
 
-- 入口文件是 [src/index.ts](/C:/Users/liulancong/Desktop/Resume/src/index.ts)
-- 页面渲染是 [src/html.ts](/C:/Users/liulancong/Desktop/Resume/src/html.ts)
-- 数据访问和日志在 [src/db.ts](/C:/Users/liulancong/Desktop/Resume/src/db.ts)
-- 数据库初始化 SQL 在 [0001_init.sql](/C:/Users/liulancong/Desktop/Resume/migrations/0001_init.sql)
-- Node 版本通过 [`.node-version`](/C:/Users/liulancong/Desktop/Resume/.node-version) 固定为 `22`
+- 为每个招聘者或公司生成单独的简历链接
+- 打开链接即可直接在线查看 PDF
+- 使用不可枚举的私有链接，而不是公开目录页
+- 记录页面打开、PDF 加载、PDF 下载等访问行为
+- 提供轻量后台用于上传简历、创建链接和停用链接
 
-## 你该怎么做
+## Features | 核心特性
 
-### 1. 推到 GitHub
+### English
 
-把当前目录推到你的 GitHub 仓库。
+- Recruiter-specific share links
+- Cloudflare Worker-based server-side rendering
+- Resume PDF storage with Cloudflare R2
+- Visit and event logging with Cloudflare D1
+- Admin authentication with secure cookies
+- Link expiration and manual revocation
+- Privacy-oriented defaults such as `noindex`, `noarchive`, and hashed IP logging
+- GitHub-to-Cloudflare deployment workflow
+- Automatic D1 migration on production deployment
 
-如果还没初始化 Git：
+### 中文
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-git push -u origin main
+- 面向招聘对象的一对一专属链接
+- 基于 Cloudflare Worker 的服务端渲染
+- 使用 Cloudflare R2 存储 PDF 简历
+- 使用 Cloudflare D1 记录访问与行为日志
+- 后台密码登录与安全 Cookie 会话
+- 支持链接过期和手动停用
+- 默认偏隐私保护：`noindex`、`noarchive`、IP 哈希化存储
+- 支持 GitHub 连接 Cloudflare 的自动部署
+- 支持生产环境部署时自动执行 D1 migration
+
+## Demo Flow | 使用流程
+
+### English
+
+1. Upload the current resume PDF in the admin panel.
+2. Create a unique share link for a recruiter, company, or role.
+3. Send that link in the first contact message.
+4. The recruiter opens the link and sees the PDF immediately.
+5. TrackResume records page open, PDF load, and download activity.
+6. Revoke the link at any time if needed.
+
+### 中文
+
+1. 在后台上传当前 PDF 简历。
+2. 为某个招聘者、公司或岗位创建唯一分享链接。
+3. 在打招呼消息里直接发送这个链接。
+4. 对方打开链接后即可直接查看 PDF。
+5. TrackResume 会记录页面打开、PDF 加载和下载行为。
+6. 如果需要，你可以随时停用这条链接。
+
+## Architecture | 技术架构
+
+### English
+
+- Cloudflare Workers
+  Handles routing, server-rendered pages, admin actions, authentication, and public share pages.
+- Cloudflare R2
+  Stores the active resume PDF.
+- Cloudflare D1
+  Stores share links, settings, and access events.
+- GitHub + Workers Builds
+  Builds and deploys the project from the repository.
+
+### 中文
+
+- Cloudflare Workers
+  负责路由、页面渲染、后台操作、认证和公开分享页。
+- Cloudflare R2
+  存储当前生效的 PDF 简历。
+- Cloudflare D1
+  存储分享链接、系统设置和访问日志。
+- GitHub + Workers Builds
+  负责从仓库自动构建和部署。
+
+## Repository Structure | 仓库结构
+
+```text
+.
+├─ src/
+│  ├─ index.ts        # Worker entry and request routing
+│  ├─ html.ts         # Server-rendered page templates
+│  ├─ db.ts           # D1 access and event persistence
+│  ├─ utils.ts        # Shared helpers
+│  └─ types.ts        # Shared types and constants
+├─ migrations/
+│  └─ 0001_init.sql   # Initial D1 schema
+├─ wrangler.jsonc     # Worker project configuration
+├─ package.json
+└─ README.md
 ```
 
-### 2. 在 Cloudflare 导入 GitHub 仓库
+## Deployment | 部署方式
 
-路径：
+### Recommended
 
-`Workers & Pages` -> `Create application` -> `Import a repository`
+GitHub -> Cloudflare Workers Builds.
 
-然后：
+### English
 
-1. 授权 Cloudflare 访问你的 GitHub
-2. 选择你的仓库
-3. 生产分支选 `main`
-4. `Root directory` 留空
-5. `Build command` 留空
-6. 生产环境的 `Deploy command` 改成 `npm run deploy`
-7. 保存并部署
+1. Push this repository to GitHub.
+2. Import the repository in Cloudflare Workers.
+3. Set the production branch to `main`.
+4. Set the production deploy command to `npm run deploy`.
+5. Configure the required secrets in Cloudflare Dashboard.
+6. Ensure D1 and R2 bindings are correctly attached.
 
-如果 Cloudflare 是让你连接到“已有 Worker”，那 Cloudflare 里的 Worker 名称必须和 [wrangler.jsonc](/C:/Users/liulancong/Desktop/Resume/wrangler.jsonc) 里的 `name` 一致。
+TrackResume is currently configured for production-only deployment.
+Preview branches are intentionally not part of the default workflow.
 
-这里的 `npm run deploy` 已经被我改成：
+### 中文
+
+1. 将本仓库推送到 GitHub。
+2. 在 Cloudflare Workers 中导入该仓库。
+3. 生产分支设置为 `main`。
+4. 生产环境部署命令设置为 `npm run deploy`。
+5. 在 Cloudflare Dashboard 中配置必需的 Secret。
+6. 确认 D1 和 R2 绑定已正确添加。
+
+TrackResume 当前按“仅生产分支”策略设计。
+默认不启用 preview 分支部署。
+
+## Automatic Database Migration | 自动数据库迁移
+
+### English
+
+Production deployment runs D1 migrations automatically before deploying the Worker:
 
 ```bash
-npm run db:migrations:apply && wrangler deploy
+npm run deploy
 ```
 
-而 `db:migrations:apply` 实际执行的是：
+This executes:
 
 ```bash
 wrangler d1 migrations apply DB --remote
+wrangler deploy
 ```
 
-也就是说，Cloudflare 在生产部署时会先检查并应用 [migrations/0001_init.sql](/C:/Users/liulancong/Desktop/Resume/migrations/0001_init.sql) 这类 migration，然后再部署 Worker。
+Applied migrations are tracked by D1, so only pending migrations are executed.
 
-### 3. 在 Dashboard 创建或确认资源
+### 中文
 
-到 Cloudflare Dashboard 里创建或确认这两个资源存在：
+生产环境部署时，会先自动执行 D1 migration，再部署 Worker：
 
-- 一个 D1 数据库
-- 一个 R2 bucket
+```bash
+npm run deploy
+```
 
-路径通常是：
+实际执行逻辑是：
 
-- `Storage & databases` -> `D1`
-- `Storage & databases` -> `R2`
+```bash
+wrangler d1 migrations apply DB --remote
+wrangler deploy
+```
 
-如果你当前 [wrangler.jsonc](/C:/Users/liulancong/Desktop/Resume/wrangler.jsonc) 里已经填了真实的 `database_id` 和 `bucket_name`，那就确保 Dashboard 里的资源和这些配置对应一致。
+D1 会记录已经执行过的 migration，因此每次部署只会补跑尚未执行的变更。
 
-### 4. 配置 Secret
+## Required Configuration | 必要配置
 
-到：
-
-`Workers & Pages` -> 你的 Worker -> `Settings` -> `Variables and Secrets`
-
-添加两个 Secret：
+### Cloudflare Secrets
 
 - `ADMIN_PASSWORD`
 - `SESSION_SECRET`
 
-这两个不要提交到 GitHub。
+### Worker Variables
 
-### 5. 自动初始化 D1 数据库
-
-这个项目现在已经支持在 Cloudflare 生产部署时自动执行 migration。
-
-D1 官方文档说明：
-
-- `wrangler d1 migrations apply [DATABASE] --remote` 会把 migration 应用到远程数据库
-- `[DATABASE]` 可以用绑定名或数据库名
-- migration 的执行记录会保存到 `d1_migrations` 表
-
-所以这条命令每次部署都跑也没有问题，它只会应用“还没执行过”的 migration。
-
-这个仓库当前用的是 Cloudflare 官方推荐的绑定名写法：
-
-```bash
-wrangler d1 migrations apply DB --remote
-```
-
-这样即使以后数据库名字变了，只要绑定还是 `DB`，脚本依然能工作。
-
-### 6. 只保留生产分支
-
-你既然只想保留生产分支，那 Cloudflare 里就只部署 `main`。
-
-建议做法：
-
-- 生产分支 `main`：`Deploy command` 用 `npm run deploy`
-- 关闭所有非生产分支 / preview 自动部署
-
-这样最干净，也不会出现 preview 分支误连正式 D1 的问题。
-
-### 7. 手动 SQL 初始化现在只是兜底方案
-
-如果你不想用 Wrangler CLI，就不要跑 `wrangler d1 migrations apply`。
-
-正常情况下，Cloudflare 在生产部署时会自动执行 migration，不需要你手动打开 SQL 控制台。
-
-只有在下面这种情况，才建议手动执行 SQL：
-
-- 你还没把 Cloudflare 的生产 `Deploy command` 改成 `npm run deploy`
-- 或者你只想临时补一次初始化，不想重新触发部署
-
-这时你可以直接打开 D1 的 SQL 控制台，把 [0001_init.sql](/C:/Users/liulancong/Desktop/Resume/migrations/0001_init.sql) 的内容整段复制进去执行。
-
-这一步会创建：
-
-- `settings`
-- `share_links`
-- `view_events`
-
-以及对应索引。
-
-### 8. 重新部署一次
-
-如果你是在首次部署后才补充 Secret 或资源配置，建议到：
-
-`Workers & Pages` -> 你的 Worker -> `Deployments`
-
-重新部署最新提交一次。
-
-### 9. 开始使用
-
-访问：
-
-```text
-https://你的域名/admin/login
-```
-
-然后：
-
-- 登录后台
-- 上传 PDF 简历
-- 创建招聘方专属链接
-- 把链接直接发给对方
-
-## 哪些文件你可能要改
-
-你自己最可能要改的是 [wrangler.jsonc](/C:/Users/liulancong/Desktop/Resume/wrangler.jsonc) 里的展示信息：
-
-- `name`
 - `SITE_OWNER_NAME`
 - `SITE_OWNER_TITLE`
 - `SITE_INTRO`
 - `ALLOW_DOWNLOAD_BUTTON`
 - `LINK_EXPIRE_DAYS`
 
-如果你已经有自己的 D1 / R2 资源，也确认一下：
+### Resource Bindings
 
-- `d1_databases[0].database_id`
-- `r2_buckets[0].bucket_name`
+- `DB` for the D1 database
+- `RESUME_BUCKET` for the R2 bucket
 
-## 我对你这个要求的建议
+## Security and Privacy Notes | 安全与隐私说明
 
-你说“不想使用 Wrangler”，如果意思是“不想自己在本地跑 Wrangler CLI”，那现在这套已经满足。
+### English
 
-最实际的部署方式现在是：
+- Share links are private but not cryptographically private once forwarded.
+- Recruiters can still save or forward the PDF after opening it.
+- The system stores hashed IP values instead of plain IP addresses.
+- Secrets must never be committed to the repository.
+- Resource identifiers such as D1 database IDs and bucket names are not secrets, but they are still metadata that should be handled deliberately.
 
-- 本地只管 Git
-- Cloudflare 里只用 Dashboard
-- 生产部署时自动跑 migration
+### 中文
 
-这是目前最省事的路径。
+- 分享链接是“非公开链接”，但一旦被转发，就不能再保证只由原始接收者使用。
+- 招聘方打开 PDF 后，依然可能保存或转发文件。
+- 系统记录的是 IP 哈希值，而不是明文 IP。
+- Secret 绝不能提交到仓库。
+- D1 数据库 ID、R2 bucket 名这类资源标识不是密钥，但仍属于应谨慎暴露的元信息。
 
-## 官方文档
+## Project Status | 项目状态
 
-- Workers Builds: https://developers.cloudflare.com/workers/ci-cd/builds/
-- Git integration: https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/
-- Builds configuration: https://developers.cloudflare.com/workers/ci-cd/builds/configuration/
-- D1 migrations: https://developers.cloudflare.com/d1/reference/migrations/
-- D1 wrangler commands: https://developers.cloudflare.com/d1/wrangler-commands/
-- Deploy buttons package.json migration example: https://developers.cloudflare.com/workers/platform/deploy-buttons/
-- D1 get started: https://developers.cloudflare.com/d1/get-started/
-- R2 create buckets: https://developers.cloudflare.com/r2/buckets/create-buckets/
+TrackResume is functional and deployable.
+The current version focuses on a minimal, production-ready MVP for secure resume delivery and recruiter access tracking.
+
+TrackResume 当前已经可以部署和使用。
+现阶段重点是一个可上线的 MVP，用来完成私密简历分发与招聘访问追踪这两个核心目标。
+
+## Roadmap | 路线图
+
+### English
+
+- Custom branding and visual themes
+- Multi-file resume support
+- Better event analytics and export
+- Optional per-link access controls
+- Admin audit trail
+
+### 中文
+
+- 自定义品牌信息与主题样式
+- 多份简历文件支持
+- 更细致的访问分析与导出
+- 可选的单链接访问限制策略
+- 后台审计日志
+
+## Development | 本地开发
+
+```bash
+npm install
+npm run check
+```
+
+If you want to run local development with Wrangler, you still can, but local Wrangler usage is not required for the standard GitHub-to-Cloudflare deployment flow.
+
+如果你愿意，本地仍然可以使用 Wrangler 做开发调试；但对于当前推荐的 GitHub -> Cloudflare 部署流程，并不要求你在本地手动使用 Wrangler。
+
+## License | 许可证
+
+No license file has been added yet.
+Add a proper open-source license before publishing this project as a public OSS repository.
+
+当前仓库还没有添加许可证文件。
+如果你准备把它作为公开开源项目长期维护，建议补充正式的开源许可证。
