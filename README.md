@@ -27,7 +27,7 @@ TrackResume addresses that problem by providing:
 - Link expiration and manual revocation
 - Privacy-oriented defaults such as `noindex`, `noarchive`, and hashed IP logging
 - GitHub-to-Cloudflare deployment workflow
-- Automatic D1 migration on production deployment
+- Automatic D1 migration on main-branch deployment
 
 ## Demo Flow
 
@@ -74,17 +74,16 @@ GitHub -> Cloudflare Workers Builds
 
 1. Push this repository to GitHub.
 2. Import the repository in Cloudflare Workers.
-3. Set the production branch to `main`.
-4. Set the production deploy command to `npm run deploy`.
+3. Set the branch to `main`.
+4. Set the deploy command to `npm run deploy`.
 5. Configure the required secrets in Cloudflare Dashboard.
 6. Ensure D1 and R2 bindings are correctly attached.
 
-TrackResume is currently configured for production-only deployment.
-Preview branches are intentionally excluded from the default workflow.
+TrackResume is configured to deploy from `main` only.
 
 ## Automatic Database Migration
 
-Production deployment runs D1 migrations automatically before deploying the Worker:
+Deployment from `main` runs D1 migrations automatically before deploying the Worker:
 
 ```bash
 npm run deploy
@@ -130,7 +129,7 @@ Applied migrations are tracked by D1, so only pending migrations are executed.
 ## Project Status
 
 TrackResume is functional and deployable.
-The current version focuses on a minimal, production-ready MVP for secure resume delivery and recruiter access tracking.
+The current version focuses on a minimal MVP for secure resume delivery and recruiter access tracking.
 
 ## Roadmap
 
