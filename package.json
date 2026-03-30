@@ -10,6 +10,37 @@
     "check": "tsc --noEmit",
     "cf-typegen": "wrangler types"
   },
+  "cloudflare": {
+    "bindings": {
+      "ADMIN_PASSWORD": {
+        "description": "Secret used to log in to /admin."
+      },
+      "SESSION_SECRET": {
+        "description": "Secret used to sign admin sessions and salt hashed visitor IP values."
+      },
+      "SITE_OWNER_NAME": {
+        "description": "Public owner name shown on the landing page and resume viewer."
+      },
+      "SITE_OWNER_TITLE": {
+        "description": "Public owner title shown on the resume viewer."
+      },
+      "SITE_INTRO": {
+        "description": "Short intro text shown on the landing page and resume viewer."
+      },
+      "ALLOW_DOWNLOAD_BUTTON": {
+        "description": "Set to true to show the public Download PDF button."
+      },
+      "LINK_EXPIRE_DAYS": {
+        "description": "Default share-link expiration offset in days for the admin form."
+      },
+      "DB": {
+        "description": "D1 database for share links, settings, and access events."
+      },
+      "RESUME_BUCKET": {
+        "description": "R2 bucket that stores the active resume PDF."
+      }
+    }
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
     "typescript": "^5.0.0",

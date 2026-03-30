@@ -2,151 +2,96 @@
 
 [简体中文](./README.zh-CN.md)
 
-TrackResume is a privacy-aware resume sharing and tracking portal built on Cloudflare Workers.
-It helps candidates send recruiter-specific resume links that open a PDF immediately, while keeping access scoped, observable, and easy to revoke.
-
-## Overview
-
-TrackResume is built for a common hiring workflow problem: many recruiting platforms either require the recruiter to reply first or only expose limited in-app profile fields. In practice, that means a carefully prepared PDF resume is often never opened.
-
-TrackResume addresses that problem by providing:
-
-- A dedicated resume link for each recruiter or company
-- Direct in-browser PDF viewing
-- Private access through unlisted, hard-to-guess links
-- Visit tracking for page open, PDF load, and download events
-- A lightweight admin panel for upload, link creation, and revocation
+TrackResume is a privacy-aware resume delivery and tracking portal built on Cloudflare Workers. It helps candidates share recruiter-specific resume links that open a PDF immediately while keeping access unlisted, observable, and easy to revoke.
 
 ## Features
 
 - Recruiter-specific share links
-- Cloudflare Worker-based server-side rendering
-- Resume PDF storage with Cloudflare R2
-- Visit and event logging with Cloudflare D1
-- Admin authentication with secure cookies
-- Link expiration and manual revocation
+- Direct in-browser PDF viewing
+- Access event tracking for page opens, PDF loads, and downloads
+- Admin dashboard for resume upload, link creation, and revocation
+- Cloudflare-native architecture with Workers, D1, and R2
 - Privacy-oriented defaults such as `noindex`, `noarchive`, and hashed IP logging
-- GitHub-to-Cloudflare deployment workflow
-- Automatic D1 migration during deployment
 
-## Demo Flow
+## Typical Workflow
 
-1. Upload the current resume PDF in the admin panel.
-2. Create a unique share link for a recruiter, company, or role.
-3. Send that link in the first contact message.
-4. The recruiter opens the link and sees the PDF immediately.
-5. TrackResume records page open, PDF load, and download activity.
-6. Revoke the link at any time if needed.
+1. Upload the current resume PDF in the admin dashboard.
+2. Create a unique link for a recruiter, company, or role.
+3. Send the generated link in an outreach message.
+4. The recipient opens the link and views the PDF directly in the browser.
+5. TrackResume records key access events.
+6. Revoke the link at any time.
 
 ## Architecture
 
-- Cloudflare Workers
-  Handles routing, server-rendered pages, admin actions, authentication, and public share pages.
-- Cloudflare R2
-  Stores the active resume PDF.
-- Cloudflare D1
-  Stores share links, settings, and access events.
-- GitHub + Workers Builds
-  Builds and deploys the project from the repository.
+- Cloudflare Workers: request routing, server-rendered pages, admin actions, authentication, and public resume pages
+- Cloudflare D1: share links, runtime settings, and access events
+- Cloudflare R2: active resume PDF storage
+- TypeScript: application logic and HTML templates
+
+## Deployment
+
+TrackResume is designed for deployment through Cloudflare Workers with a Git-backed workflow.
+
+1. Push the repository to GitHub.
+2. Create a Worker project from the repository in Cloudflare Dashboard.
+3. Set the deploy command to `npm run deploy`.
+4. Add the required secrets in Cloudflare Dashboard.
+5. Review `wrangler.jsonc` for bindings and public-facing variables.
+6. Deploy.
+
+## Configuration
+
+### Secrets
+
+- `ADMIN_PASSWORD`: Password used to sign in to `/admin`
+- `SESSION_SECRET`: Secret used to sign admin session cookies and salt hashed visitor IP values
+
+### Worker Variables
+
+- `SITE_OWNER_NAME`: Name shown on the landing page and public resume page
+- `SITE_OWNER_TITLE`: Subtitle shown on the public resume page
+- `SITE_INTRO`: Short introduction shown on the landing page and resume viewer
+- `ALLOW_DOWNLOAD_BUTTON`: Set to `true` to show the public download button
+- `LINK_EXPIRE_DAYS`: Default expiration window, in days, for newly created share links
+
+### Resource Bindings
+
+- `DB`: D1 database for share links, settings, and access events
+- `RESUME_BUCKET`: R2 bucket that stores the active resume PDF
 
 ## Repository Structure
 
 ```text
 .
 ├─ src/
-│  ├─ index.ts        # Worker entry and request routing
-│  ├─ html.ts         # Server-rendered page templates
-│  ├─ db.ts           # D1 access and event persistence
-│  ├─ utils.ts        # Shared helpers
-│  └─ types.ts        # Shared types and constants
+│  ├─ index.ts
+│  ├─ html.ts
+│  ├─ db.ts
+│  ├─ utils.ts
+│  └─ types.ts
 ├─ migrations/
-│  └─ 0001_init.sql   # Initial D1 schema
-├─ wrangler.jsonc     # Worker project configuration
+│  └─ 0001_init.sql
+├─ wrangler.jsonc
 ├─ package.json
 └─ README.md
 ```
-
-## Deployment
-
-Recommended workflow:
-
-GitHub -> Cloudflare Workers Builds
-
-1. Push this repository to GitHub.
-2. Import the repository in Cloudflare Workers.
-3. Set the deploy command to `npm run deploy`.
-4. Configure the required secrets in Cloudflare Dashboard.
-5. Ensure D1 and R2 bindings are correctly attached.
-TrackResume is configured for a single deployment flow.
-
-## Automatic Database Migration
-
-Deployment runs D1 migrations automatically before deploying the Worker:
-
-```bash
-npm run deploy
-```
-
-This executes:
-
-```bash
-wrangler d1 migrations apply DB --remote
-wrangler deploy
-```
-
-Applied migrations are tracked by D1, so only pending migrations are executed.
-
-## Required Configuration
-
-### Cloudflare Secrets
-
-- `ADMIN_PASSWORD`
-- `SESSION_SECRET`
-
-### Worker Variables
-
-- `SITE_OWNER_NAME`
-- `SITE_OWNER_TITLE`
-- `SITE_INTRO`
-- `ALLOW_DOWNLOAD_BUTTON`
-- `LINK_EXPIRE_DAYS`
-
-### Resource Bindings
-
-- `DB` for the D1 database
-- `RESUME_BUCKET` for the R2 bucket
-
-## Security and Privacy Notes
-
-- Share links are private but not cryptographically private once forwarded.
-- Recruiters can still save or forward the PDF after opening it.
-- The system stores hashed IP values instead of plain IP addresses.
-- Secrets must never be committed to the repository.
-- Resource identifiers such as D1 database IDs and bucket names are not secrets, but they are still metadata that should be handled deliberately.
-
-## Project Status
-
-TrackResume is functional and deployable.
-The current version focuses on a minimal MVP for secure resume delivery and recruiter access tracking.
-
-## Roadmap
-
-- Custom branding and visual themes
-- Multi-file resume support
-- Better event analytics and export
-- Optional per-link access controls
-- Admin audit trail
 
 ## Development
 
 ```bash
 npm install
 npm run check
+npm run dev
 ```
 
-If you want to run local development with Wrangler, you still can, but local Wrangler usage is not required for the standard GitHub-to-Cloudflare deployment flow.
+## Security Notes
+
+- Share links are unlisted, but they are not private once forwarded.
+- Recipients can still save or forward the PDF after opening it.
+- The system stores hashed IP values instead of raw IP addresses.
+- Secrets should be managed in Cloudflare Dashboard and never committed to the repository.
 
 ## License
 
-This project is licensed under the MIT License.
-See [LICENSE](./LICENSE) for details.
+MIT. See [LICENSE](./LICENSE).
