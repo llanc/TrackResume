@@ -33,12 +33,11 @@ TrackResume 是一个基于 Cloudflare Workers 的隐私优先简历分发与访
 
 TrackResume 适合通过 Git 仓库接入 Cloudflare Workers 进行部署。
 
-1. 将仓库推送到 GitHub。
-2. 在 Cloudflare Dashboard 中从仓库创建 Worker 项目。
+1. Fork本仓库，修改`wrangler.jsonc` 中的绑定与变量配置
+2. 在 Cloudflare Dashboard 中从GitHub仓库创建 Worker 项目。
 3. 将部署命令设置为 `npm run deploy`。
-4. 在 Cloudflare Dashboard 中补齐必需的 Secret。
-5. 检查 `wrangler.jsonc` 中的绑定与公开变量配置。
-6. 执行部署。
+4. 在 Cloudflare Dashboard 中补齐必需的 Secrets。
+5. 执行部署。
 
 ## 配置说明
 
