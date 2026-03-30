@@ -31,13 +31,20 @@ TrackResume is a privacy-aware resume delivery and tracking portal built on Clou
 
 ## Deployment
 
-TrackResume is designed for deployment through Cloudflare Workers with a Git-backed workflow.
+TrackResume currently documents a single deployment workflow: create the required Cloudflare resources manually, then deploy through a GitHub-connected Cloudflare Worker.
 
-1. Fork this repository and adjust bindings and public variables in `wrangler.jsonc` as needed.
-2. Create a Worker project from the GitHub repository in Cloudflare Dashboard.
-3. Set the deploy command to `npm run deploy`.
-4. Add the required secrets in Cloudflare Dashboard.
-5. Deploy.
+1. Create a D1 database and an R2 bucket manually in Cloudflare Dashboard.
+2. Fork this repository.
+3. Update the D1 and R2 settings in `wrangler.jsonc`:
+   set your own `database_name` and `database_id` under `d1_databases`
+   set your own `bucket_name` under `r2_buckets`
+4. Push the repository to GitHub.
+5. Create a Worker project from that GitHub repository in Cloudflare Dashboard.
+6. Set the deploy command to `npm run deploy`.
+7. Add the required secrets in Cloudflare Dashboard.
+8. Deploy.
+
+This repository does not document any other deployment path.
 
 ## Configuration
 

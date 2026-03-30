@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "db:migrations:apply": "wrangler d1 migrations apply DB --remote",
-    "deploy": "node scripts/deploy.mjs",
+    "deploy": "npm run db:migrations:apply && wrangler deploy",
     "check": "tsc --noEmit",
     "cf-typegen": "wrangler types"
   },

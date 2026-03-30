@@ -31,13 +31,20 @@ TrackResume 是一个基于 Cloudflare Workers 的隐私优先简历分发与访
 
 ## 部署
 
-TrackResume 适合通过 Git 仓库接入 Cloudflare Workers 进行部署。
+TrackResume 目前只保留一种部署方式：手动创建 Cloudflare 资源后，通过 GitHub 仓库接入 Cloudflare Workers 进行部署。
 
-1. Fork本仓库，修改`wrangler.jsonc` 中的绑定与变量配置
-2. 在 Cloudflare Dashboard 中从GitHub仓库创建 Worker 项目。
-3. 将部署命令设置为 `npm run deploy`。
-4. 在 Cloudflare Dashboard 中补齐必需的 Secrets。
-5. 执行部署。
+1. 在 Cloudflare Dashboard 中手动创建一个 D1 数据库和一个 R2 bucket。
+2. Fork 本仓库。
+3. 修改 `wrangler.jsonc` 中的 D1 和 R2 配置：
+   `d1_databases` 中填写你自己的 `database_name` 和 `database_id`
+   `r2_buckets` 中填写你自己的 `bucket_name`
+4. 将仓库推送到 GitHub。
+5. 在 Cloudflare Dashboard 中从该 GitHub 仓库创建 Worker 项目。
+6. 将 Deploy command 设置为 `npm run deploy`。
+7. 在 Cloudflare Dashboard 中补齐必需的 Secrets。
+8. 执行部署。
+
+除了这条 GitHub -> Cloudflare Workers 的部署路径之外，README 不再维护其他部署方式。
 
 ## 配置说明
 
