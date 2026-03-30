@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "private-resume-worker",
+  "name": "track-resume",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-30",
   "d1_databases": [
