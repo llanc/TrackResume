@@ -72,6 +72,39 @@ TrackResume 提供了下面这些能力：
 
 GitHub -> Cloudflare Workers Builds
 
+### 前置步骤
+
+首次部署前，需要先创建 Cloudflare 资源并更新配置。
+
+**1. 创建 D1 数据库**
+
+```bash
+npx wrangler d1 create track_resume
+```
+
+将输出中的 `database_id` 复制出来，并更新到 `wrangler.jsonc` 中：
+
+```jsonc
+{
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "track_resume",
+      "database_id": "<填入你的 database_id>",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
+```
+
+**2. 创建 R2 bucket**
+
+```bash
+npx wrangler r2 bucket create track-resume
+```
+
+**3. 部署**
+
 1. 将本仓库推送到 GitHub。
 2. 在 Cloudflare Workers 中导入该仓库。
 3. 部署命令设置为 `npm run deploy`。
@@ -82,7 +115,7 @@ TrackResume 当前按单一部署流程配置。
 
 ## 自动数据库迁移
 
-部署时，会先自动执行 D1 migration，再部署 Worker：
+`npm run deploy` 会在部署 Worker **之前**自动执行 D1 migration，因此首次部署时所有表都会被自动创建：
 
 ```bash
 npm run deploy
@@ -95,7 +128,7 @@ wrangler d1 migrations apply DB --remote
 wrangler deploy
 ```
 
-D1 会记录已经执行过的 migration，因此每次部署只会补跑尚未执行的变更。
+D1 会记录已经执行过的 migration，因此每次部署只会补跑尚未执行的变更。如果你发现 D1 数据库中没有任何表，请确认 `wrangler.jsonc` 里的 `database_id` 与你在步骤 1 中创建的数据库一致，且 Cloudflare Dashboard 中的 D1 绑定也指向同一个数据库。
 
 ## 必要配置
 

@@ -72,16 +72,50 @@ Recommended workflow:
 
 GitHub -> Cloudflare Workers Builds
 
+### Prerequisites
+
+Before the first deploy, you need to create the Cloudflare resources and update the configuration.
+
+**1. Create a D1 database**
+
+```bash
+npx wrangler d1 create track_resume
+```
+
+Copy the `database_id` from the output and update it in `wrangler.jsonc`:
+
+```jsonc
+{
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "track_resume",
+      "database_id": "<paste-your-database-id-here>",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
+```
+
+**2. Create an R2 bucket**
+
+```bash
+npx wrangler r2 bucket create track-resume
+```
+
+**3. Deploy**
+
 1. Push this repository to GitHub.
 2. Import the repository in Cloudflare Workers.
 3. Set the deploy command to `npm run deploy`.
 4. Configure the required secrets in Cloudflare Dashboard.
 5. Ensure D1 and R2 bindings are correctly attached.
+
 TrackResume is configured for a single deployment flow.
 
 ## Automatic Database Migration
 
-Deployment runs D1 migrations automatically before deploying the Worker:
+`npm run deploy` runs D1 migrations automatically **before** deploying the Worker, so all tables are created on first deploy:
 
 ```bash
 npm run deploy
@@ -94,7 +128,7 @@ wrangler d1 migrations apply DB --remote
 wrangler deploy
 ```
 
-Applied migrations are tracked by D1, so only pending migrations are executed.
+Applied migrations are tracked by D1, so only pending migrations are executed on subsequent deploys. If you see an empty D1 database with no tables, verify that the `database_id` in `wrangler.jsonc` matches the database you created in step 1 above, and that the D1 binding in the Cloudflare Dashboard is attached to the same database.
 
 ## Required Configuration
 
