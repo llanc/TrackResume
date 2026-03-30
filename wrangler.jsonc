@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "private-resume-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-03-30",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "track_resume",
+      "database_id": "1ed58dc1-216c-4f11-850d-8a06e385dc9d",
+      "preview_database_id": "",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RESUME_BUCKET",
+      "bucket_name": "track-resume"
+    }
+  ],
+  "vars": {
+    "SITE_OWNER_NAME": "Your Name",
+    "SITE_OWNER_TITLE": "Resume Portal",
+    "SITE_INTRO": "Private resume access for recruiters only.",
+    "ALLOW_DOWNLOAD_BUTTON": "true",
+    "LINK_EXPIRE_DAYS": "30"
+  }
+}
