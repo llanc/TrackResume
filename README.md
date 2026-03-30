@@ -100,8 +100,8 @@ Applied migrations are tracked by D1, so only pending migrations are executed.
 
 ### Cloudflare Secrets
 
-- `ADMIN_PASSWORD`
-- `SESSION_SECRET`
+- `ADMIN_PASSWORD` — Password used to authenticate to the `/admin` panel.
+- `SESSION_SECRET` — A long random string used for two purposes: (1) signing and verifying the admin session cookie so that only valid logins can access the admin panel, and (2) acting as a salt when hashing visitor IP addresses before they are stored in the database, preventing the raw IPs from ever being persisted.
 
 ### Worker Variables
 
