@@ -8,7 +8,6 @@
       "binding": "DB",
       "database_name": "track_resume",
       "database_id": "1ed58dc1-216c-4f11-850d-8a06e385dc9d",
-      "preview_database_id": "",
       "migrations_dir": "migrations"
     }
   ],

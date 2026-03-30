@@ -11,7 +11,7 @@
 - 把代码推到 GitHub
 - 在 Cloudflare Dashboard 导入仓库
 - 在 Dashboard 里配置 Secret、D1、R2
-- 在 D1 的 SQL 控制台执行初始化 SQL
+- 让 Cloudflare 在生产部署时自动执行 D1 migration
 
 这个仓库里仍然保留了 [wrangler.jsonc](/C:/Users/liulancong/Desktop/Resume/wrangler.jsonc)，但它只是给 Cloudflare 构建系统读的项目配置文件，不要求你手动运行 Wrangler。
 
@@ -55,10 +55,24 @@ git push -u origin main
 3. 生产分支选 `main`
 4. `Root directory` 留空
 5. `Build command` 留空
-6. `Deploy command` 保持默认
+6. 生产环境的 `Deploy command` 改成 `npm run deploy`
 7. 保存并部署
 
 如果 Cloudflare 是让你连接到“已有 Worker”，那 Cloudflare 里的 Worker 名称必须和 [wrangler.jsonc](/C:/Users/liulancong/Desktop/Resume/wrangler.jsonc) 里的 `name` 一致。
+
+这里的 `npm run deploy` 已经被我改成：
+
+```bash
+npm run db:migrations:apply && wrangler deploy
+```
+
+而 `db:migrations:apply` 实际执行的是：
+
+```bash
+wrangler d1 migrations apply DB --remote
+```
+
+也就是说，Cloudflare 在生产部署时会先检查并应用 [migrations/0001_init.sql](/C:/Users/liulancong/Desktop/Resume/migrations/0001_init.sql) 这类 migration，然后再部署 Worker。
 
 ### 3. 在 Dashboard 创建或确认资源
 
@@ -87,11 +101,49 @@ git push -u origin main
 
 这两个不要提交到 GitHub。
 
-### 5. 初始化 D1 数据库
+### 5. 自动初始化 D1 数据库
+
+这个项目现在已经支持在 Cloudflare 生产部署时自动执行 migration。
+
+D1 官方文档说明：
+
+- `wrangler d1 migrations apply [DATABASE] --remote` 会把 migration 应用到远程数据库
+- `[DATABASE]` 可以用绑定名或数据库名
+- migration 的执行记录会保存到 `d1_migrations` 表
+
+所以这条命令每次部署都跑也没有问题，它只会应用“还没执行过”的 migration。
+
+这个仓库当前用的是 Cloudflare 官方推荐的绑定名写法：
+
+```bash
+wrangler d1 migrations apply DB --remote
+```
+
+这样即使以后数据库名字变了，只要绑定还是 `DB`，脚本依然能工作。
+
+### 6. 只保留生产分支
+
+你既然只想保留生产分支，那 Cloudflare 里就只部署 `main`。
+
+建议做法：
+
+- 生产分支 `main`：`Deploy command` 用 `npm run deploy`
+- 关闭所有非生产分支 / preview 自动部署
+
+这样最干净，也不会出现 preview 分支误连正式 D1 的问题。
+
+### 7. 手动 SQL 初始化现在只是兜底方案
 
 如果你不想用 Wrangler CLI，就不要跑 `wrangler d1 migrations apply`。
 
-直接打开 D1 的 SQL 控制台，把 [0001_init.sql](/C:/Users/liulancong/Desktop/Resume/migrations/0001_init.sql) 的内容整段复制进去执行即可。
+正常情况下，Cloudflare 在生产部署时会自动执行 migration，不需要你手动打开 SQL 控制台。
+
+只有在下面这种情况，才建议手动执行 SQL：
+
+- 你还没把 Cloudflare 的生产 `Deploy command` 改成 `npm run deploy`
+- 或者你只想临时补一次初始化，不想重新触发部署
+
+这时你可以直接打开 D1 的 SQL 控制台，把 [0001_init.sql](/C:/Users/liulancong/Desktop/Resume/migrations/0001_init.sql) 的内容整段复制进去执行。
 
 这一步会创建：
 
@@ -101,7 +153,7 @@ git push -u origin main
 
 以及对应索引。
 
-### 6. 重新部署一次
+### 8. 重新部署一次
 
 如果你是在首次部署后才补充 Secret 或资源配置，建议到：
 
@@ -109,7 +161,7 @@ git push -u origin main
 
 重新部署最新提交一次。
 
-### 7. 开始使用
+### 9. 开始使用
 
 访问：
 
@@ -138,18 +190,17 @@ https://你的域名/admin/login
 如果你已经有自己的 D1 / R2 资源，也确认一下：
 
 - `d1_databases[0].database_id`
-- `d1_databases[0].preview_database_id`
 - `r2_buckets[0].bucket_name`
 
 ## 我对你这个要求的建议
 
 你说“不想使用 Wrangler”，如果意思是“不想自己在本地跑 Wrangler CLI”，那现在这套已经满足。
 
-最实际的部署方式就是：
+最实际的部署方式现在是：
 
 - 本地只管 Git
 - Cloudflare 里只用 Dashboard
-- 数据库初始化用 D1 SQL 控制台
+- 生产部署时自动跑 migration
 
 这是目前最省事的路径。
 
@@ -158,5 +209,8 @@ https://你的域名/admin/login
 - Workers Builds: https://developers.cloudflare.com/workers/ci-cd/builds/
 - Git integration: https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/
 - Builds configuration: https://developers.cloudflare.com/workers/ci-cd/builds/configuration/
+- D1 migrations: https://developers.cloudflare.com/d1/reference/migrations/
+- D1 wrangler commands: https://developers.cloudflare.com/d1/wrangler-commands/
+- Deploy buttons package.json migration example: https://developers.cloudflare.com/workers/platform/deploy-buttons/
 - D1 get started: https://developers.cloudflare.com/d1/get-started/
 - R2 create buckets: https://developers.cloudflare.com/r2/buckets/create-buckets/
