@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS view_events (
   event_type TEXT NOT NULL,
   occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   viewer_id TEXT,
-  ip_hash TEXT,
+  ip_address TEXT,
   country TEXT,
   city TEXT,
   colo TEXT,

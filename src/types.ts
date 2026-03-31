@@ -2,9 +2,7 @@ export interface Env {
   DB: D1Database;
   RESUME_BUCKET: R2Bucket;
   ADMIN_PASSWORD?: string;
-  SESSION_SECRET?: string;
   SITE_OWNER_NAME?: string;
-  SITE_OWNER_TITLE?: string;
   SITE_INTRO?: string;
   ALLOW_DOWNLOAD_BUTTON?: string;
   LINK_EXPIRE_DAYS?: string;
@@ -39,7 +37,7 @@ export interface ViewEvent {
   event_type: string;
   occurred_at: string;
   viewer_id: string | null;
-  ip_hash: string | null;
+  ip_address: string | null;
   country: string | null;
   city: string | null;
   colo: string | null;

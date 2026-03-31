@@ -4,7 +4,7 @@ import {
   ShareLink,
   ViewEvent,
 } from './types';
-import { generateId, sha256Hex, stringOrNull } from './utils';
+import { generateId, stringOrNull } from './utils';
 
 export async function getSettings(db: D1Database): Promise<Map<string, string>> {
   const result = await db.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
@@ -72,7 +72,7 @@ export async function listShareLinks(db: D1Database): Promise<ShareLink[]> {
   return result.results || [];
 }
 
-export async function listRecentEvents(db: D1Database): Promise<ViewEvent[]> {
+export async function listEventsForShareLink(db: D1Database, slug: string): Promise<ViewEvent[]> {
   const result = await db.prepare(`
     SELECT
       e.id,
@@ -80,7 +80,7 @@ export async function listRecentEvents(db: D1Database): Promise<ViewEvent[]> {
       e.event_type,
       e.occurred_at,
       e.viewer_id,
-      e.ip_hash,
+      e.ip_address,
       e.country,
       e.city,
       e.colo,
@@ -94,9 +94,10 @@ export async function listRecentEvents(db: D1Database): Promise<ViewEvent[]> {
       l.platform_name
     FROM view_events e
     INNER JOIN share_links l ON l.id = e.share_link_id
+    WHERE l.slug = ?
     ORDER BY e.occurred_at DESC
-    LIMIT 100
-  `).all<ViewEvent>();
+    LIMIT 200
+  `).bind(slug).all<ViewEvent>();
 
   return result.results || [];
 }
@@ -156,10 +157,9 @@ export async function recordEvent(
   details: Record<string, unknown> | null,
 ): Promise<void> {
   const requestWithCf = request as RequestWithCf;
-  const ip = request.headers.get('CF-Connecting-IP') || '';
-  const ipHash = ip && env.SESSION_SECRET ? await sha256Hex(`${env.SESSION_SECRET}:${ip}`) : null;
   const cf = requestWithCf.cf || {};
   const detailsJson = details ? JSON.stringify(details) : null;
+  const ipAddress = stringOrNull(request.headers.get('CF-Connecting-IP'));
 
   await env.DB.batch([
     env.DB.prepare(`
@@ -167,7 +167,7 @@ export async function recordEvent(
         share_link_id,
         event_type,
         viewer_id,
-        ip_hash,
+        ip_address,
         country,
         city,
         colo,
@@ -179,7 +179,7 @@ export async function recordEvent(
       link.id,
       eventType,
       viewerId,
-      ipHash,
+      ipAddress,
       stringOrNull(cf.country),
       stringOrNull(cf.city),
       stringOrNull(cf.colo),

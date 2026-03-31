@@ -8,10 +8,10 @@ TrackResume is a privacy-aware resume delivery and tracking portal built on Clou
 
 - Recruiter-specific share links
 - Direct in-browser PDF viewing
-- Access event tracking for page opens, PDF loads, and downloads
+- Access event tracking for page opens, PDF loads, downloads, and visitor IPs
 - Admin dashboard for resume upload, link creation, and revocation
 - Cloudflare-native architecture with Workers, D1, and R2
-- Privacy-oriented defaults such as `noindex`, `noarchive`, and hashed IP logging
+- Privacy-oriented defaults such as `noindex` and `noarchive`
 
 ## Typical Workflow
 
@@ -50,13 +50,11 @@ This repository does not document any other deployment path.
 
 ### Secrets
 
-- `ADMIN_PASSWORD`: Password used to sign in to `/admin`
-- `SESSION_SECRET`: Secret used to sign admin session cookies and salt hashed visitor IP values
+- `ADMIN_PASSWORD`: Password used to sign in to `/admin` and sign admin session cookies
 
 ### Worker Variables
 
 - `SITE_OWNER_NAME`: Name shown on the landing page and public resume page
-- `SITE_OWNER_TITLE`: Subtitle shown on the public resume page
 - `SITE_INTRO`: Short introduction shown on the landing page and resume viewer
 - `ALLOW_DOWNLOAD_BUTTON`: Set to `true` to show the public download button
 - `LINK_EXPIRE_DAYS`: Default expiration window, in days, for newly created share links
@@ -95,7 +93,7 @@ npm run dev
 
 - Share links are unlisted, but they are not private once forwarded.
 - Recipients can still save or forward the PDF after opening it.
-- The system stores hashed IP values instead of raw IP addresses.
+- The admin access log stores raw visitor IP addresses for review.
 - Secrets should be managed in Cloudflare Dashboard and never committed to the repository.
 
 ## License

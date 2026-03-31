@@ -3,13 +3,14 @@ import {
   getLinkAvailability,
   getSettings,
   getShareLinkBySlug,
-  listRecentEvents,
+  listEventsForShareLink,
   listShareLinks,
   recordEvent,
   setSetting,
 } from './db';
 import {
   renderAdminDashboardPage,
+  renderAdminLinkEventsPage,
   renderAdminLoginPage,
   renderInvalidLinkPage,
   renderLandingPage,
@@ -28,6 +29,7 @@ import {
 } from './types';
 import {
   applyCommonHeaders,
+  buildContentDisposition,
   generateId,
   htmlResponse,
   isTruthy,
@@ -111,6 +113,11 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
     return handleCreateLink(request, env);
   }
 
+  const adminEventsMatch = pathname.match(/^\/admin\/links\/([A-Za-z0-9_-]+)\/events$/);
+  if (adminEventsMatch && request.method === 'GET') {
+    return handleAdminLinkEvents(request, env, adminEventsMatch[1]);
+  }
+
   const revokeMatch = pathname.match(/^\/admin\/links\/([A-Za-z0-9_-]+)\/revoke$/);
   if (revokeMatch && request.method === 'POST') {
     return handleRevokeLink(request, env, revokeMatch[1]);
@@ -142,8 +149,9 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleAdminLogin(request: Request, env: Env): Promise<Response> {
-  if (!env.ADMIN_PASSWORD || !env.SESSION_SECRET) {
-    return htmlResponse(renderAdminLoginPage('请先在 Cloudflare 中配置 ADMIN_PASSWORD 和 SESSION_SECRET。'), 500);
+  const adminSessionSecret = getAdminSessionSecret(env);
+  if (!env.ADMIN_PASSWORD || !adminSessionSecret) {
+    return htmlResponse(renderAdminLoginPage('请先在 Cloudflare 中配置 ADMIN_PASSWORD。'), 500);
   }
 
   const form = await request.formData();
@@ -152,7 +160,7 @@ async function handleAdminLogin(request: Request, env: Env): Promise<Response> {
     return htmlResponse(renderAdminLoginPage('密码不正确。'), 401);
   }
 
-  const session = await signSession(env.SESSION_SECRET, {
+  const session = await signSession(adminSessionSecret, {
     role: 'admin',
     exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
   });
@@ -186,10 +194,9 @@ async function handleAdminDashboard(request: Request, env: Env): Promise<Respons
   }
 
   const url = new URL(request.url);
-  const [settings, links, events] = await Promise.all([
+  const [settings, links] = await Promise.all([
     getSettings(env.DB),
     listShareLinks(env.DB),
-    listRecentEvents(env.DB),
   ]);
 
   const createdSlug = url.searchParams.get('created');
@@ -202,7 +209,6 @@ async function handleAdminDashboard(request: Request, env: Env): Promise<Respons
   return htmlResponse(renderAdminDashboardPage({
     origin: url.origin,
     links,
-    events,
     createdSlug,
     shareUrl,
     suggestedText,
@@ -213,6 +219,31 @@ async function handleAdminDashboard(request: Request, env: Env): Promise<Respons
     allowDownloadButton: isTruthy(env.ALLOW_DOWNLOAD_BUTTON),
     defaultExpireDays: Number.parseInt(env.LINK_EXPIRE_DAYS || '30', 10) || 30,
     message,
+  }));
+}
+
+async function handleAdminLinkEvents(request: Request, env: Env, slug: string): Promise<Response> {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return redirect('/admin/login');
+  }
+
+  const link = await getShareLinkBySlug(env.DB, slug);
+  if (!link) {
+    return htmlResponse(
+      renderLayout({
+        title: 'Link not found',
+        pageClass: 'centered',
+        body: '<section class="panel narrow"><h1>链接不存在</h1><p>请返回后台列表，确认该链接是否仍然有效。</p></section>',
+      }),
+      404,
+    );
+  }
+
+  const events = await listEventsForShareLink(env.DB, slug);
+  return htmlResponse(renderAdminLinkEventsPage({
+    origin: new URL(request.url).origin,
+    link,
+    events,
   }));
 }
 
@@ -231,27 +262,27 @@ async function handleResumeUpload(request: Request, env: Env): Promise<Response>
     return redirectToAdminMessage('PDF大小需要在10MB以内');
   }
 
-  const safeName = sanitizeFileName(file.name || 'resume.pdf');
-  if (!safeName.toLowerCase().endsWith('.pdf')) {
+  const displayName = sanitizeFileName(file.name || 'resume.pdf');
+  if (!displayName.toLowerCase().endsWith('.pdf')) {
     return redirectToAdminMessage('仅支持PDF格式');
   }
 
-  const key = `resume/${Date.now()}-${safeName}`;
+  const key = `resume/${Date.now()}-${displayName}`;
   await env.RESUME_BUCKET.put(key, file.stream(), {
     httpMetadata: {
       contentType: 'application/pdf',
-      contentDisposition: `inline; filename="${safeName}"`,
+      contentDisposition: buildContentDisposition('inline', displayName),
       cacheControl: 'private, no-store',
     },
     customMetadata: {
-      originalName: safeName,
+      originalName: displayName,
       uploadedAt: new Date().toISOString(),
     },
   });
 
   await Promise.all([
     setSetting(env.DB, ACTIVE_RESUME_KEY, key),
-    setSetting(env.DB, ACTIVE_RESUME_NAME, safeName),
+    setSetting(env.DB, ACTIVE_RESUME_NAME, displayName),
     setSetting(env.DB, ACTIVE_RESUME_SIZE, String(file.size)),
     setSetting(env.DB, ACTIVE_RESUME_UPLOADED_AT, new Date().toISOString()),
   ]);
@@ -325,11 +356,8 @@ async function handlePublicResumePage(request: Request, env: Env, slug: string):
   await recordEvent(env, request, link, 'page_open', viewerId, null);
 
   const response = htmlResponse(renderPublicResumePage({
-    origin: new URL(request.url).origin,
     link,
     ownerName: env.SITE_OWNER_NAME || 'Your Name',
-    ownerTitle: env.SITE_OWNER_TITLE || 'Resume Portal',
-    intro: env.SITE_INTRO || 'Private resume access for recruiters only.',
     hasResume: Boolean(settings.get(ACTIVE_RESUME_KEY)),
     allowDownloadButton: isTruthy(env.ALLOW_DOWNLOAD_BUTTON),
   }));
@@ -380,7 +408,7 @@ async function handlePublicResumePdf(request: Request, env: Env, slug: string): 
   headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
 
   const shouldDownload = new URL(request.url).searchParams.get('download') === '1';
-  headers.set('Content-Disposition', `${shouldDownload ? 'attachment' : 'inline'}; filename="${fileName}"`);
+  headers.set('Content-Disposition', buildContentDisposition(shouldDownload ? 'attachment' : 'inline', fileName));
 
   const hasRange = request.headers.has('Range');
   if (shouldDownload && !hasRange) {
@@ -421,7 +449,8 @@ async function handlePublicEvent(request: Request, env: Env, slug: string): Prom
 }
 
 async function isAdminAuthenticated(request: Request, env: Env): Promise<boolean> {
-  if (!env.SESSION_SECRET) {
+  const adminSessionSecret = getAdminSessionSecret(env);
+  if (!adminSessionSecret) {
     return false;
   }
 
@@ -430,8 +459,13 @@ async function isAdminAuthenticated(request: Request, env: Env): Promise<boolean
     return false;
   }
 
-  const payload = await verifySession(env.SESSION_SECRET, cookie);
+  const payload = await verifySession(adminSessionSecret, cookie);
   return Boolean(payload && payload.role === 'admin' && payload.exp > Math.floor(Date.now() / 1000));
+}
+
+function getAdminSessionSecret(env: Env): string | null {
+  const password = (env.ADMIN_PASSWORD || '').trim();
+  return password ? `admin-session:${password}` : null;
 }
 
 function redirectToAdminMessage(message: string): Response {

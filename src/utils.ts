@@ -87,7 +87,7 @@ export function applyCommonHeaders(response: Response): Response {
   if (headers.get('Content-Type')?.startsWith('text/html')) {
     headers.set(
       'Content-Security-Policy',
-      "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self'; object-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self'; object-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
     );
   }
 
@@ -126,7 +126,34 @@ export function truncate(value: string, limit: number): string | null {
 }
 
 export function sanitizeFileName(name: string): string {
-  return name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-');
+  const cleaned = name
+    .trim()
+    .replace(/[\u0000-\u001f\u007f]+/g, '')
+    .replace(/[\\/:"*?<>|]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/^\.+/, '')
+    .slice(0, 180);
+
+  return cleaned || 'resume.pdf';
+}
+
+export function toAsciiFileName(name: string): string {
+  const lastDot = name.lastIndexOf('.');
+  const extension = lastDot > 0 ? name.slice(lastDot).replace(/[^A-Za-z0-9.]+/g, '') : '.pdf';
+  const baseName = (lastDot > 0 ? name.slice(0, lastDot) : name)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 120);
+
+  return `${baseName || 'resume'}${extension || '.pdf'}`;
+}
+
+export function buildContentDisposition(type: 'attachment' | 'inline', fileName: string): string {
+  const fallback = toAsciiFileName(fileName);
+  return `${type}; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
 export function parseLocalDateTime(value: string): string | null {
@@ -227,11 +254,6 @@ export async function hmacSha256(secret: string, value: string): Promise<string>
   );
   const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
   return toBase64Url(new Uint8Array(signature));
-}
-
-export async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((part) => part.toString(16).padStart(2, '0')).join('');
 }
 
 export async function signSession(secret: string, payload: SessionPayload): Promise<string> {

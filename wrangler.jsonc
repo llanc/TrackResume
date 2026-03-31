@@ -19,7 +19,6 @@
   ],
   "vars": {
     "SITE_OWNER_NAME": "Your Name",
-    "SITE_OWNER_TITLE": "Resume Portal",
     "SITE_INTRO": "Private resume access for recruiters only.",
     "ALLOW_DOWNLOAD_BUTTON": "true",
     "LINK_EXPIRE_DAYS": "30"
