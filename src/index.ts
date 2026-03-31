@@ -76,6 +76,17 @@ export default {
 
 async function routeRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+
+  if (url.protocol === 'http:' && !isLocalHost(url.hostname)) {
+    url.protocol = 'https:';
+    return new Response(null, {
+      status: 308,
+      headers: {
+        Location: url.toString(),
+      },
+    });
+  }
+
   const pathname = stripTrailingSlash(url.pathname);
 
   if (pathname === '/robots.txt') {
@@ -508,9 +519,13 @@ function getAdminSessionSecret(env: Env): string | null {
 function redirectToAdminMessage(message: string): Response {
   return redirect(`/admin?message=${encodeURIComponent(message)}`);
 }
+
 function getViewerId(request: Request): string | null {
   return parseCookies(request.headers.get('Cookie') || '').get(VIEWER_COOKIE) || null;
 }
 
+function isLocalHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
 
 
