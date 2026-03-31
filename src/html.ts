@@ -85,19 +85,7 @@ export function renderPublicResumePage(input: {
               <section class="viewer-stage">
                 <div class="pdf-stage-shell">
                   <div class="pdf-status reveal" data-pdf-status>正在加载简历预览...</div>
-                  <section class="panel narrow viewer-empty" hidden data-pdf-error>
-                    <div class="eyebrow">Preview Unavailable</div>
-                    <h1>简历预览暂时不可用</h1>
-                    <p>当前浏览器未能完成页面内预览。你仍然可以直接打开 PDF 或下载文件。</p>
-                    <div class="row-actions">
-                      <a class="button button-primary button-xl" href="${pdfUrl}" rel="noreferrer">打开 PDF</a>
-                      ${
-                        input.allowDownloadButton
-                          ? `<a class="button button-secondary" href="${downloadUrl}" rel="noreferrer">下载 PDF</a>`
-                          : ''
-                      }
-                    </div>
-                  </section>
+
                   <div class="pdf-pages" hidden data-pdf-pages></div>
                 </div>
               </section>
@@ -122,9 +110,8 @@ export function renderPublicResumePage(input: {
           const pdfJsUrl = ${JSON.stringify(pdfJsUrl)};
           const pdfJsWorkerUrl = ${JSON.stringify(pdfJsWorkerUrl)};
           const status = document.querySelector('[data-pdf-status]');
-          const errorPanel = document.querySelector('[data-pdf-error]');
           const pages = document.querySelector('[data-pdf-pages]');
-          if (!status || !errorPanel || !pages) return;
+          if (!status || !pages) return;
 
           const resumeLoadedKey = 'resume-loaded:' + slug;
           let hasReportedLoad = false;
@@ -145,7 +132,6 @@ export function renderPublicResumePage(input: {
 
           const showError = () => {
             status.hidden = true;
-            errorPanel.hidden = false;
             pages.hidden = true;
           };
 
@@ -169,7 +155,6 @@ export function renderPublicResumePage(input: {
               const pdf = await loadingTask.promise;
               pages.replaceChildren();
               pages.hidden = false;
-              errorPanel.hidden = true;
 
               for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
                 updateStatus('正在渲染第 ' + pageNumber + ' / ' + pdf.numPages + ' 页...');
