@@ -79,8 +79,7 @@ export function renderPublicResumePage(input: {
       <section class="viewer-minimal">
         <div class="viewer-download-rail">
           <div class="viewer-download-copy">
-            <div class="eyebrow">Private Resume Access</div>
-            <p>优先通过页面内按钮下载 PDF，便于准确记录下载动作。</p>
+            <div class="eyebrow">Private Resume PDF</div>
           </div>
           ${
             input.allowDownloadButton
