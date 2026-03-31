@@ -38,6 +38,7 @@ export function renderInvalidLinkPage(reason: string): string {
   return renderLayout({
     title: APP_NAME,
     pageClass: 'centered',
+    enableInstallUi: false,
     body: `
       <section class="panel auth-card reveal">
         <div class="eyebrow">${APP_NAME}</div>
@@ -55,11 +56,13 @@ export function renderPublicResumePage(input: {
 }): string {
   const pdfUrl = `/r/${encodeURIComponent(input.link.slug)}/pdf`;
   const downloadUrl = `${pdfUrl}?download=1`;
-  const viewerSrc = `${pdfUrl}#toolbar=0&navpanes=0&zoom=100`;
+  const desktopViewerUrl = `${pdfUrl}#toolbar=0&navpanes=0&zoom=100`;
+  const mobileViewerUrl = `${pdfUrl}#toolbar=0&navpanes=0&view=FitH&zoom=page-width`;
 
   return renderLayout({
     title: APP_NAME,
     pageClass: 'viewer-page',
+    enableInstallUi: false,
     body: `
       <section class="viewer-shell">
         ${
@@ -78,7 +81,7 @@ export function renderPublicResumePage(input: {
           input.hasResume
             ? `
               <section class="viewer-stage">
-                <iframe id="resume-frame" class="reveal" src="${viewerSrc}" title="Resume PDF"></iframe>
+                <iframe id="resume-frame" class="reveal" title="Resume PDF"></iframe>
               </section>
             `
             : `
@@ -97,8 +100,20 @@ export function renderPublicResumePage(input: {
         (() => {
           const slug = ${JSON.stringify(input.link.slug)};
           const eventUrl = ${JSON.stringify(`/r/${input.link.slug}/event`)};
+          const desktopViewerUrl = ${JSON.stringify(desktopViewerUrl)};
+          const mobileViewerUrl = ${JSON.stringify(mobileViewerUrl)};
           const frame = document.getElementById('resume-frame');
           if (!frame) return;
+
+          const isCompactScreen = window.matchMedia('(max-width: 860px)').matches;
+          const canInlinePdf = typeof navigator.pdfViewerEnabled === 'boolean'
+            ? navigator.pdfViewerEnabled
+            : true;
+
+          if (isCompactScreen || !canInlinePdf) {
+            window.location.replace(mobileViewerUrl);
+            return;
+          }
 
           const resumeLoadedKey = 'resume-loaded:' + slug;
           frame.addEventListener('load', () => {
@@ -109,6 +124,8 @@ export function renderPublicResumePage(input: {
             });
             navigator.sendBeacon(eventUrl, blob);
           });
+
+          frame.src = desktopViewerUrl;
         })();
       </script>
     `,
@@ -119,10 +136,12 @@ export function renderLayout(input: {
   title?: string;
   body: string;
   pageClass?: string;
+  enableInstallUi?: boolean;
 }): string {
   const documentTitle = !input.title || input.title === APP_NAME
     ? APP_NAME
     : `${escapeHtml(input.title)} | ${APP_NAME}`;
+  const enableInstallUi = input.enableInstallUi !== false;
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -200,98 +219,104 @@ export function renderLayout(input: {
     <main>
       ${input.body}
     </main>
-    <div class="install-banner-shell" hidden data-install-shell>
-      <div class="install-banner">
-        <div class="install-banner-copy">
-          <div class="eyebrow">${APP_NAME}</div>
-          <strong data-install-title>安装应用</strong>
-          <p data-install-copy>将后台固定到手机或桌面，像 App 一样直接打开。</p>
-        </div>
-        <div class="install-banner-actions">
-          <button type="button" class="button button-warning" data-install-action hidden>立即安装</button>
-          <button type="button" class="button button-secondary" data-install-dismiss>稍后</button>
-        </div>
-      </div>
-    </div>
-    <script>
-      (() => {
-        const shell = document.querySelector('[data-install-shell]');
-        const title = document.querySelector('[data-install-title]');
-        const copy = document.querySelector('[data-install-copy]');
-        const action = document.querySelector('[data-install-action]');
-        const dismiss = document.querySelector('[data-install-dismiss]');
-        const storageKey = 'trackresume-install-dismissed-v1';
+    ${
+      enableInstallUi
+        ? `
+          <div class="install-banner-shell" hidden data-install-shell>
+            <div class="install-banner">
+              <div class="install-banner-copy">
+                <div class="eyebrow">${APP_NAME}</div>
+                <strong data-install-title>安装应用</strong>
+                <p data-install-copy>将后台固定到手机或桌面，像 App 一样直接打开。</p>
+              </div>
+              <div class="install-banner-actions">
+                <button type="button" class="button button-warning" data-install-action hidden>立即安装</button>
+                <button type="button" class="button button-secondary" data-install-dismiss>稍后</button>
+              </div>
+            </div>
+          </div>
+          <script>
+            (() => {
+              const shell = document.querySelector('[data-install-shell]');
+              const title = document.querySelector('[data-install-title]');
+              const copy = document.querySelector('[data-install-copy]');
+              const action = document.querySelector('[data-install-action]');
+              const dismiss = document.querySelector('[data-install-dismiss]');
+              const storageKey = 'trackresume-install-dismissed-v1';
 
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
-          }, { once: true });
-        }
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                }, { once: true });
+              }
 
-        if (!shell || !title || !copy || !action || !dismiss) {
-          return;
-        }
+              if (!shell || !title || !copy || !action || !dismiss) {
+                return;
+              }
 
-        let deferredPrompt = null;
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        const ua = window.navigator.userAgent.toLowerCase();
-        const isIos = /iphone|ipad|ipod/.test(ua);
-        const isSafari = /safari/.test(ua) && !/crios|fxios|edgios/.test(ua);
+              let deferredPrompt = null;
+              const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+              const ua = window.navigator.userAgent.toLowerCase();
+              const isIos = /iphone|ipad|ipod/.test(ua);
+              const isSafari = /safari/.test(ua) && !/crios|fxios|edgios/.test(ua);
 
-        const showBanner = (mode) => {
-          if (window.localStorage.getItem(storageKey) === '1' || isStandalone) {
-            return;
-          }
+              const showBanner = (mode) => {
+                if (window.localStorage.getItem(storageKey) === '1' || isStandalone) {
+                  return;
+                }
 
-          if (mode === 'prompt') {
-            title.textContent = '安装 TrackResume';
-            copy.textContent = '将后台固定到手机或桌面，下一次可直接从主屏幕或桌面打开。';
-            action.hidden = false;
-          } else {
-            title.textContent = '添加到主屏幕';
-            copy.textContent = '在 Safari 中点“分享”，再选择“添加到主屏幕”，即可把 TrackResume 安装到 iPhone 或 iPad。';
-            action.hidden = true;
-          }
+                if (mode === 'prompt') {
+                  title.textContent = '安装 TrackResume';
+                  copy.textContent = '将后台固定到手机或桌面，下一次可直接从主屏幕或桌面打开。';
+                  action.hidden = false;
+                } else {
+                  title.textContent = '添加到主屏幕';
+                  copy.textContent = '在 Safari 中点“分享”，再选择“添加到主屏幕”，即可把 TrackResume 安装到 iPhone 或 iPad。';
+                  action.hidden = true;
+                }
 
-          shell.hidden = false;
-        };
+                shell.hidden = false;
+              };
 
-        const hideBanner = (persist) => {
-          shell.hidden = true;
-          if (persist) {
-            window.localStorage.setItem(storageKey, '1');
-          }
-        };
+              const hideBanner = (persist) => {
+                shell.hidden = true;
+                if (persist) {
+                  window.localStorage.setItem(storageKey, '1');
+                }
+              };
 
-        dismiss.addEventListener('click', () => {
-          hideBanner(true);
-        });
+              dismiss.addEventListener('click', () => {
+                hideBanner(true);
+              });
 
-        action.addEventListener('click', async () => {
-          if (!deferredPrompt) {
-            return;
-          }
+              action.addEventListener('click', async () => {
+                if (!deferredPrompt) {
+                  return;
+                }
 
-          deferredPrompt.prompt();
-          try {
-            await deferredPrompt.userChoice;
-          } finally {
-            deferredPrompt = null;
-            hideBanner(true);
-          }
-        });
+                deferredPrompt.prompt();
+                try {
+                  await deferredPrompt.userChoice;
+                } finally {
+                  deferredPrompt = null;
+                  hideBanner(true);
+                }
+              });
 
-        window.addEventListener('beforeinstallprompt', (event) => {
-          event.preventDefault();
-          deferredPrompt = event;
-          showBanner('prompt');
-        });
+              window.addEventListener('beforeinstallprompt', (event) => {
+                event.preventDefault();
+                deferredPrompt = event;
+                showBanner('prompt');
+              });
 
-        if (isIos && isSafari && !isStandalone) {
-          showBanner('ios');
-        }
-      })();
-    </script>
+              if (isIos && isSafari && !isStandalone) {
+                showBanner('ios');
+              }
+            })();
+          </script>
+        `
+        : ''
+    }
   </body>
 </html>`;
 }
