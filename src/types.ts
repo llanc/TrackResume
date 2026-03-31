@@ -2,8 +2,6 @@ export interface Env {
   DB: D1Database;
   RESUME_BUCKET: R2Bucket;
   ADMIN_PASSWORD?: string;
-  SITE_OWNER_NAME?: string;
-  SITE_INTRO?: string;
   ALLOW_DOWNLOAD_BUTTON?: string;
   LINK_EXPIRE_DAYS?: string;
 }
@@ -62,3 +60,4 @@ export const ACTIVE_RESUME_NAME = 'active_resume_name';
 export const ACTIVE_RESUME_SIZE = 'active_resume_size';
 export const ACTIVE_RESUME_UPLOADED_AT = 'active_resume_uploaded_at';
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const APP_NAME = 'TrackResume';

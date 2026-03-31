@@ -1,5 +1,6 @@
 import {
   createUniqueSlug,
+  deleteShareLink,
   getLinkAvailability,
   getSettings,
   getShareLinkBySlug,
@@ -13,16 +14,21 @@ import {
   renderAdminLinkEventsPage,
   renderAdminLoginPage,
   renderInvalidLinkPage,
-  renderLandingPage,
   renderLayout,
   renderPublicResumePage,
 } from './html';
+import {
+  renderIconResponse,
+  renderManifestResponse,
+  renderServiceWorkerResponse,
+} from './pwa';
 import {
   ACTIVE_RESUME_KEY,
   ACTIVE_RESUME_NAME,
   ACTIVE_RESUME_SIZE,
   ACTIVE_RESUME_UPLOADED_AT,
   ADMIN_COOKIE,
+  APP_NAME,
   Env,
   MAX_UPLOAD_BYTES,
   VIEWER_COOKIE,
@@ -57,7 +63,7 @@ export default {
       return applyCommonHeaders(
         htmlResponse(
           renderLayout({
-            title: 'Server error',
+            title: APP_NAME,
             pageClass: 'centered',
             body: '<section class="panel narrow"><h1>服务异常</h1><p>站点暂时不可用，请稍后再试。</p></section>',
           }),
@@ -78,18 +84,36 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  if (pathname === '/favicon.ico') {
-    return new Response(null, { status: 204 });
+  if (pathname === '/manifest.webmanifest') {
+    return renderManifestResponse();
+  }
+
+  if (pathname === '/sw.js') {
+    return renderServiceWorkerResponse();
+  }
+
+  if (pathname === '/icon-192.png' || pathname === '/favicon.ico') {
+    return renderIconResponse(192);
+  }
+
+  if (pathname === '/icon-512.png') {
+    return renderIconResponse(512);
+  }
+
+  if (pathname === '/apple-touch-icon.png') {
+    return renderIconResponse(180);
   }
 
   if (pathname === '/') {
-    return htmlResponse(renderLandingPage({
-      ownerName: env.SITE_OWNER_NAME || 'Private Resume',
-      intro: env.SITE_INTRO || 'Private resume access for recruiters only.',
-    }));
+    return (await isAdminAuthenticated(request, env))
+      ? redirect('/admin')
+      : redirect('/admin/login');
   }
 
   if (pathname === '/admin/login' && request.method === 'GET') {
+    if (await isAdminAuthenticated(request, env)) {
+      return redirect('/admin');
+    }
     return htmlResponse(renderAdminLoginPage());
   }
 
@@ -123,6 +147,11 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
     return handleRevokeLink(request, env, revokeMatch[1]);
   }
 
+  const deleteMatch = pathname.match(/^\/admin\/links\/([A-Za-z0-9_-]+)\/delete$/);
+  if (deleteMatch && request.method === 'POST') {
+    return handleDeleteLink(request, env, deleteMatch[1]);
+  }
+
   const resumePageMatch = pathname.match(/^\/r\/([A-Za-z0-9_-]+)$/);
   if (resumePageMatch && request.method === 'GET') {
     return handlePublicResumePage(request, env, resumePageMatch[1]);
@@ -140,7 +169,7 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
 
   return htmlResponse(
     renderLayout({
-      title: 'Not found',
+      title: APP_NAME,
       pageClass: 'centered',
       body: '<section class="panel narrow"><h1>链接无效</h1><p>请确认你打开的是完整的简历专属链接。</p></section>',
     }),
@@ -231,7 +260,7 @@ async function handleAdminLinkEvents(request: Request, env: Env, slug: string): 
   if (!link) {
     return htmlResponse(
       renderLayout({
-        title: 'Link not found',
+        title: APP_NAME,
         pageClass: 'centered',
         body: '<section class="panel narrow"><h1>链接不存在</h1><p>请返回后台列表，确认该链接是否仍然有效。</p></section>',
       }),
@@ -340,6 +369,15 @@ async function handleRevokeLink(request: Request, env: Env, slug: string): Promi
   return redirectToAdminMessage('链接已停用');
 }
 
+async function handleDeleteLink(request: Request, env: Env, slug: string): Promise<Response> {
+  if (!(await isAdminAuthenticated(request, env))) {
+    return redirect('/admin/login');
+  }
+
+  await deleteShareLink(env.DB, slug);
+  return redirectToAdminMessage('链接已删除');
+}
+
 async function handlePublicResumePage(request: Request, env: Env, slug: string): Promise<Response> {
   const link = await getShareLinkBySlug(env.DB, slug);
   if (!link) {
@@ -357,7 +395,6 @@ async function handlePublicResumePage(request: Request, env: Env, slug: string):
 
   const response = htmlResponse(renderPublicResumePage({
     link,
-    ownerName: env.SITE_OWNER_NAME || 'Your Name',
     hasResume: Boolean(settings.get(ACTIVE_RESUME_KEY)),
     allowDownloadButton: isTruthy(env.ALLOW_DOWNLOAD_BUTTON),
   }));

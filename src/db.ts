@@ -116,6 +116,21 @@ export async function createUniqueSlug(db: D1Database): Promise<string> {
   throw new Error('Unable to create unique slug.');
 }
 
+export async function deleteShareLink(db: D1Database, slug: string): Promise<void> {
+  const link = await db.prepare(
+    'SELECT id FROM share_links WHERE slug = ? LIMIT 1',
+  ).bind(slug).first<{ id: number }>();
+
+  if (!link) {
+    return;
+  }
+
+  await db.batch([
+    db.prepare('DELETE FROM view_events WHERE share_link_id = ?').bind(link.id),
+    db.prepare('DELETE FROM share_links WHERE id = ?').bind(link.id),
+  ]);
+}
+
 export function getLinkAvailability(link: ShareLink): {
   active: boolean;
   status: number;

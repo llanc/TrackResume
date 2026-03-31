@@ -15,12 +15,6 @@
       "ADMIN_PASSWORD": {
         "description": "Secret used to log in to /admin and sign admin session cookies."
       },
-      "SITE_OWNER_NAME": {
-        "description": "Public owner name shown on the landing page and resume viewer."
-      },
-      "SITE_INTRO": {
-        "description": "Short intro text shown on the landing page and resume viewer."
-      },
       "ALLOW_DOWNLOAD_BUTTON": {
         "description": "Set to true to show the public Download PDF button."
       },

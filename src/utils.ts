@@ -87,7 +87,7 @@ export function applyCommonHeaders(response: Response): Response {
   if (headers.get('Content-Type')?.startsWith('text/html')) {
     headers.set(
       'Content-Security-Policy',
-      "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self'; object-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self'; manifest-src 'self'; object-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
     );
   }
 

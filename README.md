@@ -2,14 +2,15 @@
 
 [简体中文](./README.zh-CN.md)
 
-TrackResume is a privacy-aware resume delivery and tracking portal built on Cloudflare Workers. It helps candidates share recruiter-specific resume links that open a PDF immediately while keeping access unlisted, observable, and easy to revoke.
+TrackResume is a privacy-aware resume delivery and tracking portal built on Cloudflare Workers. It helps candidates share recruiter-specific resume links that open a PDF immediately while keeping access unlisted, observable, easy to revoke, and easy to delete.
 
 ## Features
 
 - Recruiter-specific share links
 - Direct in-browser PDF viewing
 - Access event tracking for page opens, PDF loads, downloads, and visitor IPs
-- Admin dashboard for resume upload, link creation, and revocation
+- Admin dashboard for resume upload, link creation, revocation, and deletion
+- Installable PWA experience for phone and desktop
 - Cloudflare-native architecture with Workers, D1, and R2
 - Privacy-oriented defaults such as `noindex` and `noarchive`
 
@@ -20,7 +21,7 @@ TrackResume is a privacy-aware resume delivery and tracking portal built on Clou
 3. Send the generated link in an outreach message.
 4. The recipient opens the link and views the PDF directly in the browser.
 5. TrackResume records key access events.
-6. Revoke the link at any time.
+6. Revoke or permanently delete the link at any time.
 
 ## Architecture
 
@@ -54,8 +55,6 @@ This repository does not document any other deployment path.
 
 ### Worker Variables
 
-- `SITE_OWNER_NAME`: Name shown on the landing page and public resume page
-- `SITE_INTRO`: Short introduction shown on the landing page and resume viewer
 - `ALLOW_DOWNLOAD_BUTTON`: Set to `true` to show the public download button
 - `LINK_EXPIRE_DAYS`: Default expiration window, in days, for newly created share links
 
@@ -72,6 +71,7 @@ This repository does not document any other deployment path.
 │  ├─ index.ts
 │  ├─ html.ts
 │  ├─ db.ts
+│  ├─ pwa.ts
 │  ├─ utils.ts
 │  └─ types.ts
 ├─ migrations/
