@@ -56,40 +56,29 @@ export function renderPublicResumePage(input: {
   const pdfUrl = `/r/${encodeURIComponent(input.link.slug)}/pdf`;
   const downloadUrl = `${pdfUrl}?download=1`;
   const viewerSrc = `${pdfUrl}#toolbar=0&navpanes=0&zoom=100`;
-  const targetContext = [
-    input.link.company_name,
-    input.link.role_title,
-    input.link.recruiter_name,
-  ].filter(Boolean).join(' · ') || '招聘专属分享链接';
 
   return renderLayout({
     title: APP_NAME,
     pageClass: 'viewer-page',
     body: `
       <section class="viewer-shell">
-        <header class="viewer-topbar">
-          <div class="viewer-brand">
-            <div class="eyebrow">${APP_NAME}</div>
-            <h1 class="viewer-title">专属简历</h1>
-            <p class="viewer-meta">${escapeHtml(targetContext)}</p>
-            <p class="viewer-hint">默认按 100% 显示，可继续滚轮或双指缩放。</p>
-          </div>
-          <div class="viewer-actions">
-            ${
-              input.allowDownloadButton
-                ? `<a class="button button-primary button-xl" href="${downloadUrl}" rel="noreferrer">下载 PDF</a>`
-                : `<span class="tag">下载已关闭</span>`
-            }
-          </div>
-        </header>
+        ${
+          input.allowDownloadButton
+            ? `
+              <header class="viewer-topbar viewer-topbar-actions-only">
+                <div class="viewer-actions">
+                  <a class="button button-primary button-xl" href="${downloadUrl}" rel="noreferrer">下载 PDF</a>
+                </div>
+              </header>
+            `
+            : ''
+        }
 
         ${
           input.hasResume
             ? `
               <section class="viewer-stage">
-                <div class="viewer-frame-shell reveal">
-                  <iframe id="resume-frame" src="${viewerSrc}" title="Resume PDF"></iframe>
-                </div>
+                <iframe id="resume-frame" class="reveal" src="${viewerSrc}" title="Resume PDF"></iframe>
               </section>
             `
             : `
@@ -177,7 +166,7 @@ export function renderLayout(input: {
       .panel{position:relative;overflow:hidden;background:var(--surface);border:1px solid rgba(255,255,255,.72);border-radius:28px;backdrop-filter:blur(18px);box-shadow:var(--shadow);padding:24px}
       .panel::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.22),transparent 38%)}
       .panel.narrow{width:min(620px,100%)}
-      .stack,.dashboard-shell,.detail-shell,.auth-card,.dashboard-hero,.detail-hero,.section-card,.result-card,.resume-summary,.viewer-brand,.viewer-frame-shell,.viewer-empty,.install-banner-copy{display:grid;gap:16px}
+      .stack,.dashboard-shell,.detail-shell,.auth-card,.dashboard-hero,.detail-hero,.section-card,.result-card,.resume-summary,.viewer-brand,.viewer-empty,.install-banner-copy{display:grid;gap:16px}
       .eyebrow{display:inline-flex;align-items:center;gap:.5rem;color:var(--accent);font-size:.78rem;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
       .tag,.status-pill,.chip{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:34px;padding:.42rem .78rem;border-radius:999px;font-size:.84rem;font-weight:800}
       .tag,.chip{color:var(--brand);background:rgba(255,255,255,.8);border:1px solid var(--line)}
@@ -197,13 +186,13 @@ export function renderLayout(input: {
       .upload-field{position:relative;display:block}.upload-input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}.upload-surface{position:relative;z-index:1;display:grid;gap:10px;padding:24px;border:1px dashed rgba(16,37,66,.18);border-radius:26px;background:linear-gradient(135deg,rgba(16,37,66,.05),rgba(255,255,255,.6)),rgba(255,255,255,.68);box-shadow:inset 0 1px 0 rgba(255,255,255,.75);transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}.upload-field:hover .upload-surface,.upload-field:focus-within .upload-surface{border-color:rgba(16,37,66,.34);transform:translateY(-1px);box-shadow:0 18px 32px rgba(16,37,66,.08),inset 0 1px 0 rgba(255,255,255,.75)}.upload-kicker{color:var(--accent);font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.upload-title{color:var(--text);font-size:1.1rem;font-weight:800;line-height:1.45;word-break:break-all}.upload-helper{color:var(--muted);font-size:.9rem}.upload-chip{display:inline-flex;align-items:center;justify-content:center;width:fit-content;padding:.65rem .95rem;border-radius:999px;background:rgba(16,37,66,.08);color:var(--brand);font-weight:700}
       .copy-stack,.link-meta{display:grid;gap:14px}.copy-row{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}.copy-row textarea{min-height:110px}
       .link-grid,.event-list{display:grid;gap:16px}.link-card,.event-card{display:grid;gap:16px}.link-card h3,.event-card h3{font-size:1.28rem}.link-head,.event-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.chip-row,.row-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start}.detail-line{display:flex;justify-content:space-between;gap:12px;padding:.9rem 1rem;border-radius:18px;background:rgba(255,255,255,.72);border:1px solid var(--line)}.detail-line strong{color:var(--text);font-size:.94rem}.detail-line span{color:var(--muted);font-size:.88rem}.metric-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}.empty-state{text-align:center;color:var(--muted);padding:14px 0}
-      .viewer-shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}.viewer-topbar{position:sticky;top:0;z-index:3;align-items:center;padding:16px 18px;background:rgba(10,20,36,.92);color:#f7f3eb;border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px)}.viewer-brand .eyebrow{color:rgba(255,222,186,.82)}.viewer-title{font-size:clamp(1.35rem,4.5vw,2rem);font-weight:900}.viewer-meta,.viewer-hint{color:rgba(247,243,235,.84)}.viewer-hint{font-size:.92rem}.viewer-stage{min-height:0;padding:14px;background:radial-gradient(circle at top right,rgba(16,37,66,.08),transparent 28%),linear-gradient(180deg,#efe7da 0%,#dfd3c0 100%)}.viewer-frame-shell{height:100%;min-height:0;max-width:1160px;width:100%;margin:0 auto;padding:12px;border-radius:28px;background:rgba(255,252,248,.7);border:1px solid rgba(255,255,255,.72);box-shadow:0 24px 70px rgba(16,37,66,.12)}.viewer-frame-shell iframe{width:100%;height:100%;min-height:480px;border:0;display:block;border-radius:18px;background:#fff}.viewer-empty-wrap{display:grid;place-items:center}.viewer-empty{align-self:center;justify-self:center}
+      .viewer-shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}.viewer-topbar{position:sticky;top:0;z-index:3;align-items:center;padding:16px 18px;background:rgba(10,20,36,.92);color:#f7f3eb;border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px)}.viewer-topbar.viewer-topbar-actions-only{justify-content:flex-end}.viewer-brand .eyebrow{color:rgba(255,222,186,.82)}.viewer-title{font-size:clamp(1.35rem,4.5vw,2rem);font-weight:900}.viewer-meta,.viewer-hint{color:rgba(247,243,235,.84)}.viewer-hint{font-size:.92rem}.viewer-stage{min-height:0;padding:0;background:radial-gradient(circle at top right,rgba(16,37,66,.08),transparent 28%),linear-gradient(180deg,#efe7da 0%,#dfd3c0 100%)}.viewer-stage iframe{width:100%;height:100%;min-height:480px;border:0;display:block;background:#d9d0c2}.viewer-empty-wrap{display:grid;place-items:center;padding:14px}.viewer-empty{align-self:center;justify-self:center}
       .install-banner-shell{position:fixed;left:16px;right:16px;bottom:16px;z-index:40}.install-banner-shell[hidden]{display:none}.install-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 18px;border-radius:24px;background:rgba(8,18,33,.92);color:#f7f3eb;border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px);box-shadow:0 20px 60px rgba(8,18,33,.28)}.install-banner p{color:rgba(247,243,235,.8)}.install-banner-actions{display:flex;flex-wrap:wrap;gap:10px}.install-banner .button-secondary{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.14);color:#fff;box-shadow:none}.install-banner .button-warning{color:#ffd7a7;background:rgba(201,131,47,.14);border-color:rgba(201,131,47,.18)}
       .reveal{animation:rise .42s ease both}@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-      @media (min-width:720px){main{width:min(1180px,calc(100vw - 40px));padding:24px 0 40px}.copy-row{grid-template-columns:1fr auto}.field-grid,.resume-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.viewer-stage{padding:18px}.viewer-frame-shell{padding:16px}}
+      @media (min-width:720px){main{width:min(1180px,calc(100vw - 40px));padding:24px 0 40px}.copy-row{grid-template-columns:1fr auto}.field-grid,.resume-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media (min-width:960px){.section-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.link-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media (min-width:1200px){.link-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-      @media (max-width:719px){body.viewer-page{overflow:auto}body.viewer-page main{height:auto;min-height:100dvh}.viewer-shell{min-height:100dvh;height:auto}.viewer-stage{padding-bottom:24px}.viewer-frame-shell iframe{min-height:calc(100dvh - 210px)}.install-banner{display:grid}}
+      @media (max-width:719px){body.viewer-page{overflow:auto}body.viewer-page main{height:auto;min-height:100dvh}.viewer-shell{min-height:100dvh;height:auto}.viewer-stage iframe{min-height:calc(100dvh - 140px)}.install-banner{display:grid}}
       @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
     </style>
   </head>
