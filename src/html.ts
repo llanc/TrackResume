@@ -65,22 +65,14 @@ export function renderPublicResumePage(input: {
     title: APP_NAME,
     pageClass: 'viewer-page',
     enableInstallUi: false,
-    viewportContent: 'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no',
     body: `
       <section class="viewer-shell">
         ${
-          input.hasResume
+          input.allowDownloadButton
             ? `
               <header class="viewer-topbar viewer-topbar-actions-only">
                 <div class="viewer-actions">
-                  <button type="button" class="button button-secondary viewer-zoom-button" data-zoom-out aria-label="缩小预览">缩小</button>
-                  <button type="button" class="button button-secondary viewer-zoom-indicator" data-zoom-reset aria-label="重置预览缩放">100%</button>
-                  <button type="button" class="button button-secondary viewer-zoom-button" data-zoom-in aria-label="放大预览">放大</button>
-                  ${
-                    input.allowDownloadButton
-                      ? `<a class="button button-primary button-xl" href="${downloadUrl}" rel="noreferrer">下载 PDF</a>`
-                      : ''
-                  }
+                  <a class="button button-primary button-xl" href="${downloadUrl}" rel="noreferrer">下载 PDF</a>
                 </div>
               </header>
             `
@@ -110,242 +102,313 @@ export function renderPublicResumePage(input: {
         }
       </section>
 
-      <script type="module">
-        (() => {
-          const slug = ${JSON.stringify(input.link.slug)};
-          const eventUrl = ${JSON.stringify(`/r/${input.link.slug}/event`)};
-          const pdfUrl = ${JSON.stringify(pdfUrl)};
-          const pdfJsUrl = ${JSON.stringify(pdfJsUrl)};
-          const pdfJsWorkerUrl = ${JSON.stringify(pdfJsWorkerUrl)};
-          const stage = document.querySelector('[data-pdf-stage]');
-          const status = document.querySelector('[data-pdf-status]');
-          const pages = document.querySelector('[data-pdf-pages]');
-          const zoomOut = document.querySelector('[data-zoom-out]');
-          const zoomIn = document.querySelector('[data-zoom-in]');
-          const zoomReset = document.querySelector('[data-zoom-reset]');
-          if (!stage || !status || !pages || !zoomOut || !zoomIn || !zoomReset) return;
+        <script type="module">
+          (() => {
+            const slug = ${JSON.stringify(input.link.slug)};
+            const eventUrl = ${JSON.stringify(`/r/${input.link.slug}/event`)};
+            const pdfUrl = ${JSON.stringify(pdfUrl)};
+            const pdfJsUrl = ${JSON.stringify(pdfJsUrl)};
+            const pdfJsWorkerUrl = ${JSON.stringify(pdfJsWorkerUrl)};
+            const stage = document.querySelector('[data-pdf-stage]');
+            const status = document.querySelector('[data-pdf-status]');
+            const pages = document.querySelector('[data-pdf-pages]');
+            if (!stage || !status || !pages) return;
 
-          const MIN_ZOOM = 0.75;
-          const MAX_ZOOM = 4;
-          const BUTTON_STEP = 0.2;
-          const resumeLoadedKey = 'resume-loaded:' + slug;
-          let hasReportedLoad = false;
-          let zoomScale = 1;
-          let pinchState = null;
+            const MIN_ZOOM = 0.75;
+            const MAX_ZOOM = 4;
+            const resumeLoadedKey = 'resume-loaded:' + slug;
+            const pageCache = new Map();
+            let hasReportedLoad = false;
+            let pdfDocument = null;
+            let zoomScale = 1;
+            let renderedZoomScale = 1;
+            let renderedFitScale = 1;
+            let renderVersion = 0;
+            let currentRenderTask = null;
+            let pinchState = null;
+            let resizeTimer = 0;
 
-          const reportResumeLoaded = () => {
-            if (hasReportedLoad || sessionStorage.getItem(resumeLoadedKey)) return;
-            hasReportedLoad = true;
-            sessionStorage.setItem(resumeLoadedKey, '1');
-            const blob = new Blob([JSON.stringify({ type: 'resume_loaded' })], {
-              type: 'application/json'
-            });
-            navigator.sendBeacon(eventUrl, blob);
-          };
-
-          const updateStatus = (message) => {
-            status.textContent = message;
-          };
-
-          const clampZoom = (value) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
-
-          const updateZoomUi = () => {
-            zoomReset.textContent = Math.round(zoomScale * 100) + '%';
-            zoomOut.disabled = zoomScale <= MIN_ZOOM + 0.001;
-            zoomIn.disabled = zoomScale >= MAX_ZOOM - 0.001;
-          };
-
-          const applyCanvasZoom = () => {
-            pages.querySelectorAll('.pdf-page-canvas').forEach((canvas) => {
-              const baseWidth = Number(canvas.dataset.baseWidth || '0');
-              const baseHeight = Number(canvas.dataset.baseHeight || '0');
-              if (!baseWidth || !baseHeight) return;
-              canvas.style.width = Math.round(baseWidth * zoomScale) + 'px';
-              canvas.style.height = Math.round(baseHeight * zoomScale) + 'px';
-            });
-          };
-
-          const applyZoom = (nextScale, anchor) => {
-            const previousScale = zoomScale;
-            const clampedScale = clampZoom(nextScale);
-            if (Math.abs(clampedScale - previousScale) < 0.001) {
-              return;
-            }
-
-            const stageRect = stage.getBoundingClientRect();
-            const clientX = anchor && typeof anchor.clientX === 'number'
-              ? anchor.clientX
-              : stageRect.left + stageRect.width / 2;
-            const clientY = anchor && typeof anchor.clientY === 'number'
-              ? anchor.clientY
-              : stageRect.top + stageRect.height / 2;
-            const offsetX = stage.scrollLeft + (clientX - stageRect.left);
-            const offsetY = stage.scrollTop + (clientY - stageRect.top);
-
-            zoomScale = clampedScale;
-            applyCanvasZoom();
-            updateZoomUi();
-
-            requestAnimationFrame(() => {
-              const nextLeft = offsetX * (zoomScale / previousScale) - (clientX - stageRect.left);
-              const nextTop = offsetY * (zoomScale / previousScale) - (clientY - stageRect.top);
-              stage.scrollLeft = Math.max(0, nextLeft);
-              stage.scrollTop = Math.max(0, nextTop);
-            });
-          };
-
-          const getTouchDistance = (touches) => {
-            if (touches.length < 2) return 0;
-            const [firstTouch, secondTouch] = touches;
-            return Math.hypot(secondTouch.clientX - firstTouch.clientX, secondTouch.clientY - firstTouch.clientY);
-          };
-
-          const getTouchCenter = (touches) => {
-            const [firstTouch, secondTouch] = touches;
-            return {
-              clientX: (firstTouch.clientX + secondTouch.clientX) / 2,
-              clientY: (firstTouch.clientY + secondTouch.clientY) / 2,
+            const reportResumeLoaded = () => {
+              if (hasReportedLoad || sessionStorage.getItem(resumeLoadedKey)) return;
+              hasReportedLoad = true;
+              sessionStorage.setItem(resumeLoadedKey, '1');
+              const blob = new Blob([JSON.stringify({ type: 'resume_loaded' })], {
+                type: 'application/json'
+              });
+              navigator.sendBeacon(eventUrl, blob);
             };
-          };
 
-          const showError = () => {
-            status.hidden = true;
-            pages.hidden = true;
-          };
+            const updateStatus = (message) => {
+              status.textContent = message;
+            };
 
-          const renderDocument = async () => {
-            try {
-              updateStatus('正在初始化预览...');
-              const pdfjsLib = await import(pdfJsUrl);
-              pdfjsLib.GlobalWorkerOptions.workerSrc = pdfJsWorkerUrl;
+            const showStatus = (message) => {
+              updateStatus(message);
+              status.hidden = false;
+            };
 
-              const loadingTask = pdfjsLib.getDocument(pdfUrl);
-              loadingTask.onProgress = (progress) => {
-                if (!progress.total) {
-                  updateStatus('正在下载简历...');
+            const clampZoom = (value) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+
+            const showError = (message = '简历预览加载失败，请刷新后重试。') => {
+              showStatus(message);
+              if (!pages.childElementCount) {
+                pages.hidden = true;
+              }
+            };
+
+            const getAvailableWidth = () => {
+              const style = window.getComputedStyle(stage);
+              const horizontalPadding = Number.parseFloat(style.paddingLeft || '0') + Number.parseFloat(style.paddingRight || '0');
+              return Math.max(280, Math.min(stage.clientWidth - horizontalPadding, 860));
+            };
+
+            const getDisplayedTotalScale = () => renderedFitScale * renderedZoomScale;
+
+            const getAnchorMetrics = (anchor) => {
+              if (!anchor) {
+                return null;
+              }
+
+              const stageRect = stage.getBoundingClientRect();
+              const clientX = typeof anchor.clientX === 'number'
+                ? anchor.clientX
+                : stageRect.left + stageRect.width / 2;
+              const clientY = typeof anchor.clientY === 'number'
+                ? anchor.clientY
+                : stageRect.top + stageRect.height / 2;
+
+              return {
+                clientX,
+                clientY,
+                offsetX: stage.scrollLeft + (clientX - stageRect.left),
+                offsetY: stage.scrollTop + (clientY - stageRect.top),
+              };
+            };
+
+            const restoreAnchor = (anchorMetrics, previousTotalScale, nextTotalScale) => {
+              if (!anchorMetrics || !previousTotalScale || !nextTotalScale) {
+                return;
+              }
+
+              const ratio = nextTotalScale / previousTotalScale;
+              requestAnimationFrame(() => {
+                const stageRect = stage.getBoundingClientRect();
+                const nextLeft = anchorMetrics.offsetX * ratio - (anchorMetrics.clientX - stageRect.left);
+                const nextTop = anchorMetrics.offsetY * ratio - (anchorMetrics.clientY - stageRect.top);
+                stage.scrollLeft = Math.max(0, nextLeft);
+                stage.scrollTop = Math.max(0, nextTop);
+              });
+            };
+
+            const getPage = (pageNumber) => {
+              if (!pageCache.has(pageNumber)) {
+                pageCache.set(pageNumber, pdfDocument.getPage(pageNumber));
+              }
+              return pageCache.get(pageNumber);
+            };
+
+            const getTouchDistance = (touches) => {
+              if (touches.length < 2) return 0;
+              const [firstTouch, secondTouch] = touches;
+              return Math.hypot(secondTouch.clientX - firstTouch.clientX, secondTouch.clientY - firstTouch.clientY);
+            };
+
+            const getTouchCenter = (touches) => {
+              const [firstTouch, secondTouch] = touches;
+              return {
+                clientX: (firstTouch.clientX + secondTouch.clientX) / 2,
+                clientY: (firstTouch.clientY + secondTouch.clientY) / 2,
+              };
+            };
+
+            const renderDocument = async (anchor = null, reason = 'rerender') => {
+              if (!pdfDocument) {
+                return;
+              }
+
+              const anchorMetrics = getAnchorMetrics(anchor);
+              const previousTotalScale = getDisplayedTotalScale();
+              const version = ++renderVersion;
+              if (currentRenderTask) {
+                currentRenderTask.cancel();
+                currentRenderTask = null;
+              }
+
+              try {
+                if (reason === 'initial') {
+                  showStatus('正在渲染简历预览...');
+                }
+
+                const fragment = document.createDocumentFragment();
+                let nextFitScale = renderedFitScale;
+                const availableWidth = getAvailableWidth();
+
+                for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+                  if (version !== renderVersion) {
+                    return;
+                  }
+
+                  if (reason === 'initial') {
+                    updateStatus('正在渲染第 ' + pageNumber + ' / ' + pdfDocument.numPages + ' 页...');
+                  }
+
+                  const page = await getPage(pageNumber);
+                  const baseViewport = page.getViewport({ scale: 1 });
+                  const fitScale = Math.min(1, availableWidth / baseViewport.width);
+                  if (pageNumber === 1) {
+                    nextFitScale = fitScale;
+                  }
+
+                  const viewport = page.getViewport({ scale: fitScale * zoomScale });
+                  const outputScale = window.devicePixelRatio || 1;
+
+                  const canvas = document.createElement('canvas');
+                  const frame = document.createElement('div');
+                  frame.className = 'pdf-page-shell';
+                  canvas.className = 'pdf-page-canvas';
+                  canvas.width = Math.floor(viewport.width * outputScale);
+                  canvas.height = Math.floor(viewport.height * outputScale);
+                  canvas.style.width = Math.floor(viewport.width) + 'px';
+                  canvas.style.height = Math.floor(viewport.height) + 'px';
+
+                  const context = canvas.getContext('2d');
+                  if (!context) {
+                    throw new Error('Canvas 2D context is not available.');
+                  }
+
+                  currentRenderTask = page.render({
+                    canvasContext: context,
+                    viewport,
+                    transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null,
+                    background: 'white',
+                  });
+                  await currentRenderTask.promise;
+                  currentRenderTask = null;
+
+                  frame.appendChild(canvas);
+                  fragment.appendChild(frame);
+                  page.cleanup();
+                  if (pageNumber === 1) {
+                    reportResumeLoaded();
+                  }
+                }
+
+                if (version !== renderVersion) {
                   return;
                 }
 
-                const percent = Math.max(1, Math.min(99, Math.round((progress.loaded / progress.total) * 100)));
-                updateStatus('正在加载简历预览... ' + percent + '%');
-              };
-
-              const pdf = await loadingTask.promise;
-              pages.replaceChildren();
-              pages.hidden = false;
-
-              for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-                updateStatus('正在渲染第 ' + pageNumber + ' / ' + pdf.numPages + ' 页...');
-                const page = await pdf.getPage(pageNumber);
-                const baseViewport = page.getViewport({ scale: 1 });
-                const availableWidth = Math.max(
-                  280,
-                  Math.min(pages.clientWidth || window.innerWidth - 28, window.innerWidth - 28),
-                );
-                const cssScale = Math.min(1, availableWidth / baseViewport.width);
-                const viewport = page.getViewport({ scale: cssScale });
-                const outputScale = window.devicePixelRatio || 1;
-
-                const canvas = document.createElement('canvas');
-                canvas.className = 'pdf-page-canvas';
-                canvas.width = Math.floor(viewport.width * outputScale);
-                canvas.height = Math.floor(viewport.height * outputScale);
-                canvas.dataset.baseWidth = String(Math.floor(viewport.width));
-                canvas.dataset.baseHeight = String(Math.floor(viewport.height));
-
-                const context = canvas.getContext('2d');
-                if (!context) {
-                  throw new Error('Canvas 2D context is not available.');
+                pages.replaceChildren(fragment);
+                pages.hidden = false;
+                renderedFitScale = nextFitScale;
+                renderedZoomScale = zoomScale;
+                status.hidden = true;
+                restoreAnchor(anchorMetrics, previousTotalScale, getDisplayedTotalScale());
+              } catch (error) {
+                currentRenderTask = null;
+                if (error instanceof Error && error.name === 'RenderingCancelledException') {
+                  return;
                 }
-
-                pages.appendChild(canvas);
-                await page.render({
-                  canvasContext: context,
-                  viewport,
-                  transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null,
-                  background: 'white',
-                }).promise;
-
-                page.cleanup();
-                if (pageNumber === 1) {
-                  reportResumeLoaded();
-                }
+                console.error(error);
+                showError();
               }
-
-              applyCanvasZoom();
-              updateZoomUi();
-              status.hidden = true;
-            } catch (error) {
-              console.error(error);
-              showError();
-            }
-          };
-
-          zoomOut.addEventListener('click', () => {
-            applyZoom(zoomScale - BUTTON_STEP);
-          });
-
-          zoomIn.addEventListener('click', () => {
-            applyZoom(zoomScale + BUTTON_STEP);
-          });
-
-          zoomReset.addEventListener('click', () => {
-            applyZoom(1);
-          });
-
-          stage.addEventListener('wheel', (event) => {
-            if (!event.ctrlKey && !event.metaKey) {
-              return;
-            }
-            event.preventDefault();
-            const nextScale = zoomScale * Math.exp((-event.deltaY || 0) * 0.0025);
-            applyZoom(nextScale, event);
-          }, { passive: false });
-
-          stage.addEventListener('touchstart', (event) => {
-            if (event.touches.length !== 2) {
-              return;
-            }
-            pinchState = {
-              distance: getTouchDistance(event.touches),
-              scale: zoomScale,
             };
-            event.preventDefault();
-          }, { passive: false });
 
-          stage.addEventListener('touchmove', (event) => {
-            if (event.touches.length !== 2 || !pinchState || !pinchState.distance) {
-              return;
-            }
-            event.preventDefault();
-            const distance = getTouchDistance(event.touches);
-            if (!distance) {
-              return;
-            }
-            const nextScale = pinchState.scale * (distance / pinchState.distance);
-            applyZoom(nextScale, getTouchCenter(event.touches));
-          }, { passive: false });
+            const setZoom = (nextScale, anchor) => {
+              const clampedScale = clampZoom(nextScale);
+              if (Math.abs(clampedScale - zoomScale) < 0.01) {
+                return;
+              }
+              zoomScale = clampedScale;
+              void renderDocument(anchor, 'zoom');
+            };
 
-          stage.addEventListener('touchend', (event) => {
-            if (event.touches.length < 2) {
-              pinchState = null;
-            }
-          });
+            stage.addEventListener('wheel', (event) => {
+              if (!event.ctrlKey && !event.metaKey) {
+                return;
+              }
+              event.preventDefault();
+              const nextScale = zoomScale * Math.exp((-event.deltaY || 0) * 0.0025);
+              setZoom(nextScale, event);
+            }, { passive: false });
 
-          stage.addEventListener('touchcancel', () => {
-            pinchState = null;
-          });
-
-          ['gesturestart', 'gesturechange', 'gestureend'].forEach((eventName) => {
-            stage.addEventListener(eventName, (event) => {
+            stage.addEventListener('touchstart', (event) => {
+              if (event.touches.length !== 2) {
+                return;
+              }
+              pinchState = {
+                distance: getTouchDistance(event.touches),
+                scale: zoomScale,
+              };
               event.preventDefault();
             }, { passive: false });
-          });
 
-          updateZoomUi();
-          renderDocument();
-        })();
-      </script>
+            stage.addEventListener('touchmove', (event) => {
+              if (event.touches.length !== 2 || !pinchState || !pinchState.distance) {
+                return;
+              }
+              event.preventDefault();
+              const distance = getTouchDistance(event.touches);
+              if (!distance) {
+                return;
+              }
+              const nextScale = pinchState.scale * (distance / pinchState.distance);
+              setZoom(nextScale, getTouchCenter(event.touches));
+            }, { passive: false });
+
+            stage.addEventListener('touchend', (event) => {
+              if (event.touches.length < 2) {
+                pinchState = null;
+              }
+            });
+
+            stage.addEventListener('touchcancel', () => {
+              pinchState = null;
+            });
+
+            ['gesturestart', 'gesturechange', 'gestureend'].forEach((eventName) => {
+              stage.addEventListener(eventName, (event) => {
+                event.preventDefault();
+              }, { passive: false });
+            });
+
+            window.addEventListener('resize', () => {
+              if (!pdfDocument) {
+                return;
+              }
+              window.clearTimeout(resizeTimer);
+              resizeTimer = window.setTimeout(() => {
+                void renderDocument();
+              }, 120);
+            });
+
+            const loadDocument = async () => {
+              try {
+                showStatus('正在初始化预览...');
+                const pdfjsLib = await import(pdfJsUrl);
+                pdfjsLib.GlobalWorkerOptions.workerSrc = pdfJsWorkerUrl;
+
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                loadingTask.onProgress = (progress) => {
+                  if (!progress.total) {
+                    updateStatus('正在下载简历...');
+                    return;
+                  }
+
+                  const percent = Math.max(1, Math.min(99, Math.round((progress.loaded / progress.total) * 100)));
+                  updateStatus('正在加载简历预览... ' + percent + '%');
+                };
+
+                pdfDocument = await loadingTask.promise;
+                void renderDocument(null, 'initial');
+              } catch (error) {
+                console.error(error);
+                showError();
+              }
+            };
+
+            loadDocument();
+          })();
+        </script>
     `,
   });
 }
@@ -355,19 +418,17 @@ export function renderLayout(input: {
   body: string;
   pageClass?: string;
   enableInstallUi?: boolean;
-  viewportContent?: string;
 }): string {
   const documentTitle = !input.title || input.title === APP_NAME
     ? APP_NAME
     : `${escapeHtml(input.title)} | ${APP_NAME}`;
   const enableInstallUi = input.enableInstallUi !== false;
-  const viewportContent = input.viewportContent || 'width=device-width, initial-scale=1, viewport-fit=cover';
 
   return `<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="${escapeHtml(viewportContent)}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <meta name="theme-color" content="#102542" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -425,13 +486,13 @@ export function renderLayout(input: {
       .upload-field{position:relative;display:block}.upload-input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}.upload-surface{position:relative;z-index:1;display:grid;gap:10px;padding:24px;border:1px dashed rgba(16,37,66,.18);border-radius:26px;background:linear-gradient(135deg,rgba(16,37,66,.05),rgba(255,255,255,.6)),rgba(255,255,255,.68);box-shadow:inset 0 1px 0 rgba(255,255,255,.75);transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}.upload-field:hover .upload-surface,.upload-field:focus-within .upload-surface{border-color:rgba(16,37,66,.34);transform:translateY(-1px);box-shadow:0 18px 32px rgba(16,37,66,.08),inset 0 1px 0 rgba(255,255,255,.75)}.upload-kicker{color:var(--accent);font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.upload-title{color:var(--text);font-size:1.1rem;font-weight:800;line-height:1.45;word-break:break-all}.upload-helper{color:var(--muted);font-size:.9rem}.upload-chip{display:inline-flex;align-items:center;justify-content:center;width:fit-content;padding:.65rem .95rem;border-radius:999px;background:rgba(16,37,66,.08);color:var(--brand);font-weight:700}
       .copy-stack,.link-meta{display:grid;gap:14px}.copy-row{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}.copy-row textarea{min-height:110px}
       .link-grid,.event-list{display:grid;gap:16px}.link-card,.event-card{display:grid;gap:16px}.link-card h3,.event-card h3{font-size:1.28rem}.link-head,.event-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.chip-row,.row-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start}.detail-line{display:flex;justify-content:space-between;gap:12px;padding:.9rem 1rem;border-radius:18px;background:rgba(255,255,255,.72);border:1px solid var(--line)}.detail-line strong{color:var(--text);font-size:.94rem}.detail-line span{color:var(--muted);font-size:.88rem}.metric-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}.empty-state{text-align:center;color:var(--muted);padding:14px 0}
-      .viewer-shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}.viewer-topbar{position:sticky;top:0;z-index:3;align-items:center;padding:16px 18px;background:rgba(10,20,36,.92);color:#f7f3eb;border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px)}.viewer-topbar.viewer-topbar-actions-only{justify-content:flex-end}.viewer-brand .eyebrow{color:rgba(255,222,186,.82)}.viewer-title{font-size:clamp(1.35rem,4.5vw,2rem);font-weight:900}.viewer-meta,.viewer-hint{color:rgba(247,243,235,.84)}.viewer-hint{font-size:.92rem}.viewer-stage{min-height:0;overflow:auto;padding:18px 14px 32px;background:radial-gradient(circle at top right,rgba(16,37,66,.08),transparent 28%),linear-gradient(180deg,#efe7da 0%,#dfd3c0 100%);touch-action:pan-x pan-y;overscroll-behavior:contain}.viewer-actions{align-items:center}.viewer-zoom-button{min-width:74px}.viewer-zoom-indicator{min-width:78px;font-variant-numeric:tabular-nums}.pdf-stage-shell{width:min(100%,860px);margin:0 auto;display:grid;gap:18px}.pdf-status{padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.72);border:1px solid var(--line);color:var(--muted);text-align:center}.pdf-pages{display:grid;justify-items:center;gap:18px}.pdf-page-canvas{display:block;max-width:none;background:#fff}.viewer-empty-wrap{display:grid;place-items:center;padding:14px}.viewer-empty{align-self:center;justify-self:center}
+      .viewer-shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}.viewer-topbar{position:sticky;top:0;z-index:3;align-items:center;padding:16px 18px;background:rgba(10,20,36,.92);color:#f7f3eb;border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px)}.viewer-topbar.viewer-topbar-actions-only{justify-content:flex-end}.viewer-brand .eyebrow{color:rgba(255,222,186,.82)}.viewer-title{font-size:clamp(1.35rem,4.5vw,2rem);font-weight:900}.viewer-meta,.viewer-hint{color:rgba(247,243,235,.84)}.viewer-hint{font-size:.92rem}.viewer-stage{min-height:0;overflow:auto;padding:18px 14px 32px;background:radial-gradient(circle at top right,rgba(16,37,66,.08),transparent 28%),linear-gradient(180deg,#efe7da 0%,#dfd3c0 100%);touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.pdf-stage-shell{width:max-content;min-width:min(100%,860px);margin:0 auto;display:grid;gap:18px}.pdf-status{max-width:100%;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.72);border:1px solid var(--line);color:var(--muted);text-align:center}.pdf-pages{display:grid;gap:18px;width:max-content;min-width:100%}.pdf-page-shell{width:fit-content}.pdf-page-canvas{display:block;max-width:none;background:#fff}.viewer-empty-wrap{display:grid;place-items:center;padding:14px}.viewer-empty{align-self:center;justify-self:center}
       .install-banner-shell{position:fixed;left:16px;right:16px;bottom:16px;z-index:40}.install-banner-shell[hidden]{display:none}.install-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 18px;border-radius:24px;background:rgba(8,18,33,.92);color:#f7f3eb;border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(18px);box-shadow:0 20px 60px rgba(8,18,33,.28)}.install-banner p{color:rgba(247,243,235,.8)}.install-banner-actions{display:flex;flex-wrap:wrap;gap:10px}.install-banner .button-secondary{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.14);color:#fff;box-shadow:none}.install-banner .button-warning{color:#ffd7a7;background:rgba(201,131,47,.14);border-color:rgba(201,131,47,.18)}
       .reveal{animation:rise .42s ease both}@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
       @media (min-width:720px){main{width:min(1180px,calc(100vw - 40px));padding:24px 0 40px}.copy-row{grid-template-columns:1fr auto}.field-grid,.resume-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media (min-width:960px){.section-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.link-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media (min-width:1200px){.link-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-      @media (max-width:719px){body.viewer-page{overflow:auto}body.viewer-page main{height:auto;min-height:100dvh}.viewer-shell{min-height:100dvh;height:auto}.viewer-stage{padding:14px 10px 24px}.pdf-stage-shell{width:100%}.install-banner{display:grid}}
+      @media (max-width:719px){body.viewer-page{overflow:auto}body.viewer-page main{height:auto;min-height:100dvh}.viewer-shell{min-height:100dvh;height:auto}.viewer-stage{padding:14px 10px 24px}.install-banner{display:grid}}
       @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
     </style>
   </head>
