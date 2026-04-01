@@ -65,6 +65,7 @@ export function renderPublicResumePage(input: {
     title: APP_NAME,
     pageClass: 'viewer-page',
     enableInstallUi: false,
+    viewportContent: 'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no',
     body: `
       <section class="viewer-shell">
         ${
@@ -433,7 +434,7 @@ export function renderPublicResumePage(input: {
             }, { passive: false });
 
             ['gesturestart', 'gesturechange', 'gestureend'].forEach((eventName) => {
-              stage.addEventListener(eventName, (event) => {
+              window.addEventListener(eventName, (event) => {
                 if (eventName !== 'gesturestart' && !pinchState) {
                   return;
                 }
@@ -488,17 +489,19 @@ export function renderLayout(input: {
   body: string;
   pageClass?: string;
   enableInstallUi?: boolean;
+  viewportContent?: string;
 }): string {
   const documentTitle = !input.title || input.title === APP_NAME
     ? APP_NAME
     : `${escapeHtml(input.title)} | ${APP_NAME}`;
   const enableInstallUi = input.enableInstallUi !== false;
+  const viewportContent = input.viewportContent || 'width=device-width, initial-scale=1, viewport-fit=cover';
 
   return `<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="${escapeHtml(viewportContent)}" />
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <meta name="theme-color" content="#102542" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
